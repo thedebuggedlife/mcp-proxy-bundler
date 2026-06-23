@@ -1,0 +1,10 @@
+node_modules/
+mcps/*/node_modules/
+/data
+test/**/.secrets/
+test/.secrets/
+
+# Generated test artifacts
+*.log
+coverage/
+.vitest/
