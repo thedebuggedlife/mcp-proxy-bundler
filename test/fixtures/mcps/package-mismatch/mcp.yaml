@@ -1,0 +1,6 @@
+name: package-mismatch
+displayName: "Package Mismatch MCP"
+mcpPackage: not-the-installed-package
+mcpBin: package-mismatch
+runtime:
+  apiKeyEnv: PACKAGE_MISMATCH_API_KEY

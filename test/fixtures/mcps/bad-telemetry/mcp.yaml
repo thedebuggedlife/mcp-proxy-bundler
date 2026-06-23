@@ -1,0 +1,8 @@
+name: bad-telemetry
+displayName: "Bad Telemetry MCP"
+mcpPackage: bad-telemetry-mcp
+mcpBin: bad-telemetry
+runtime:
+  apiKeyEnv: BAD_TELEMETRY_API_KEY
+  telemetryHosts:
+    - "http://not-a-hostname/path"
