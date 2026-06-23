@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "workarounds:nodeDockerVersioning"
+  ],
+  "enabledManagers": ["dockerfile", "npm"],
+  "pinDigests": true,
+  "minimumReleaseAge": "0 days",
+  "separateMinorPatch": true,
+  "semanticCommits": "enabled",
+  "fetchChangeLogs": "pin",
+  "packageRules": [
+    {
+      "description": "mcp-auth-proxy edge image — scope 'proxy' (versions every image).",
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["ghcr.io/sigbit/mcp-auth-proxy"],
+      "semanticCommitScope": "proxy"
+    },
+    {
+      "description": "Shared Node base image — scope 'node', LTS-only via workarounds:nodeDockerVersioning.",
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["node"],
+      "semanticCommitScope": "node"
+    },
+    {
+      "description": "Hevy MCP npm package — scope 'hevy' (versions only the hevy image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/hevy/package.json"],
+      "semanticCommitScope": "hevy"
+    },
+    {
+      "description": "minor → feat → composite minor bump (Appendix B.2).",
+      "matchUpdateTypes": ["minor"],
+      "semanticCommitType": "feat"
+    },
+    {
+      "description": "patch and digest-only → fix → composite patch bump (Appendix B.2 / D5).",
+      "matchUpdateTypes": ["patch", "digest"],
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "major → feat with a BREAKING CHANGE footer → composite major bump. Renovate appends commitBody after two newlines, landing it in the footer where the angular parser requires the breaking token (Appendix B.2).",
+      "matchUpdateTypes": ["major"],
+      "semanticCommitType": "feat",
+      "commitBody": "BREAKING CHANGE: {{{depName}}} updated to {{{newVersion}}} (major)"
+    }
+  ]
+}
