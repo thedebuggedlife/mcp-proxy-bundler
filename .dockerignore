@@ -1,0 +1,11 @@
+.git
+.github
+ralph
+node_modules
+mcps/*/node_modules
+test
+coverage
+.vitest
+*.log
+vitest.config.ts
+tsconfig.json
