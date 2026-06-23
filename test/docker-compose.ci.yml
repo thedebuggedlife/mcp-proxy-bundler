@@ -1,0 +1,101 @@
+# Real-Authelia CI harness (D8): Authelia (file users + SQLite + redis sessions)
+# + redis + the image under test (the baked mcp-auth-proxy). Secrets and the
+# rendered Authelia config are produced by scripts/gen-test-secrets.sh into the
+# gitignored test/.secrets/ dir before `docker compose up`.
+#
+# Env consumed (from test/.secrets/test.env via --env-file):
+#   OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, PROXY_AUTH_HMAC_SECRET, MCP_API_KEY
+# Plus IMAGE_UNDER_TEST (defaults to the hevy dev image) and the telemetry
+# extra_hosts (passed via the proxy service definition below).
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  authelia:
+    image: ${AUTHELIA_IMAGE:-ghcr.io/authelia/authelia:4.39.20}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./.secrets/authelia/configuration.yml:/config/configuration.yml:ro
+      - ./.secrets/authelia/users.yml:/config/users.yml:ro
+      - ./.secrets/authelia/tls:/config/tls:ro
+    command: ['authelia', '--config', '/config/configuration.yml']
+    # Authelia matches the request host against a session cookie domain to derive
+    # the OIDC issuer, so the proxy must reach it at a host that falls under that
+    # domain ('authelia.test'). Expose that name as a network alias.
+    networks:
+      default:
+        aliases:
+          - 'authelia.test'
+    ports:
+      - '9091:9091'
+    # Authelia's storage (SQLite) + notifier write under /data; tmpfs keeps it
+    # ephemeral and writable by the container user.
+    tmpfs:
+      - /data
+    # Relies on the image's built-in HEALTHCHECK (/app/healthcheck.sh), which
+    # auto-detects the TLS scheme from the config and probes /api/health with
+    # `wget --no-check-certificate`. Tighter timing than the 30s image default.
+    healthcheck:
+      interval: 3s
+      timeout: 5s
+      retries: 40
+      start_period: 10s
+
+  image-under-test:
+    image: ${IMAGE_UNDER_TEST:-ghcr.io/thedebuggedlife/mcp-hevy:dev}
+    depends_on:
+      authelia:
+        condition: service_healthy
+    environment:
+      EXTERNAL_URL: 'http://localhost:8080'
+      LISTEN: ':8080'
+      NO_AUTO_TLS: 'true'
+      DATA_PATH: '/data'
+      # Authelia serves OIDC over TLS (it rejects an http issuer); the proxy
+      # trusts the self-signed Authelia cert via SSL_CERT_FILE (Go honors it),
+      # leaving the image's baked system CA bundle untouched.
+      OIDC_CONFIGURATION_URL: 'https://authelia.test:9091/.well-known/openid-configuration'
+      SSL_CERT_FILE: '/test-certs/proxy-ca.crt'
+      OIDC_CLIENT_ID: '${OIDC_CLIENT_ID}'
+      OIDC_CLIENT_SECRET: '${OIDC_CLIENT_SECRET}'
+      OIDC_SCOPES: 'openid,profile,email,groups'
+      OIDC_ALLOWED_ATTRIBUTES: '/groups=${TEST_GROUP:-mcp-admins}'
+      OIDC_PROVIDER_NAME: 'Authelia'
+      OIDC_USER_ID_FIELD: '/email'
+      AUTH_HMAC_SECRET: '${PROXY_AUTH_HMAC_SECRET}'
+      HEVY_API_KEY: '${MCP_API_KEY}'
+    volumes:
+      - ./.secrets/authelia/proxy-ca.crt:/test-certs/proxy-ca.crt:ro
+    ports:
+      - '8080:8080'
+    # Telemetry black-hole (D10 / Finding 11): test-integration.sh renders an
+    # override compose file (test/.secrets/compose.telemetry.yml) that adds an
+    # `extra_hosts` block mapping each mcp.yaml telemetryHosts entry to
+    # 127.0.0.1 and ::1, merged via an extra `-f`.
+    # /data must be writable by the non-root (USER 1000) proxy (Finding 4): the
+    # proxy writes secret, private_key.pem, and the bbolt db on first start.
+    tmpfs:
+      - /data:uid=1000,gid=1000
+    healthcheck:
+      # The proxy's HTTP listener does not open until the baked MCP child
+      # completes its stdio handshake (Appendix A); a 200 here proves BOTH the
+      # proxy and the baked MCP are up. The image has node but no wget/curl.
+      test:
+        - 'CMD'
+        - 'node'
+        - '-e'
+        - "require('http').get('http://127.0.0.1:8080/.well-known/oauth-authorization-server',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 3s
+      timeout: 5s
+      retries: 40
+      start_period: 15s

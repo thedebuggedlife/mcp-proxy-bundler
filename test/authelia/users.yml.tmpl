@@ -1,0 +1,10 @@
+# Authelia CI test user database (rendered by scripts/gen-test-secrets.sh).
+# One throwaway user; the argon2 password hash is generated at test time (D13).
+users:
+  '@@TEST_USER@@':
+    disabled: false
+    displayname: '@@TEST_DISPLAYNAME@@'
+    password: '@@USER_PASSWORD_HASH@@'
+    email: '@@TEST_EMAIL@@'
+    groups:
+      - '@@TEST_GROUP@@'

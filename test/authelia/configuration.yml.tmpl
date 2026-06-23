@@ -1,0 +1,98 @@
+# Authelia CI test configuration (rendered by scripts/gen-test-secrets.sh).
+# All secrets are ephemeral, generated at test time (D13). This is a throwaway
+# "Lite" setup: file users + SQLite storage + redis sessions + a single OIDC
+# client for the mcp-auth-proxy under test.
+#
+# @@MARKERS@@ are substituted by gen-test-secrets.sh.
+
+theme: 'light'
+
+log:
+  level: 'debug'
+  format: 'text'
+
+server:
+  address: 'tcp://0.0.0.0:9091/'
+  # TLS so Authelia serves a genuine https connection — it refuses to advertise
+  # an http OIDC issuer. The proxy trusts this cert via SSL_CERT_FILE.
+  tls:
+    certificate: '/config/tls/authelia.crt'
+    key: '/config/tls/authelia.key'
+
+totp:
+  disable: true
+
+webauthn:
+  disable: true
+
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: '/config/users.yml'
+    password:
+      algorithm: 'argon2'
+
+access_control:
+  default_policy: 'one_factor'
+
+session:
+  # Authelia derives the OIDC issuer by matching the request host against a
+  # session cookie domain, so the cookie domain must cover the host the proxy
+  # uses to reach Authelia ('authelia.test', a docker network alias). The
+  # validator forces a period in the domain and an https authelia_url.
+  secret: '@@SESSION_SECRET@@'
+  cookies:
+    - domain: 'authelia.test'
+      authelia_url: 'https://authelia.test:9091'
+  redis:
+    host: 'redis'
+    port: 6379
+
+regulation:
+  max_retries: 0
+
+storage:
+  encryption_key: '@@STORAGE_ENCRYPTION_KEY@@'
+  local:
+    path: '/data/db.sqlite3'
+
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: '/data/notification.txt'
+
+identity_validation:
+  reset_password:
+    jwt_secret: '@@JWT_SECRET@@'
+
+identity_providers:
+  oidc:
+    hmac_secret: '@@OIDC_HMAC_SECRET@@'
+    jwks:
+      - algorithm: 'RS256'
+        use: 'sig'
+        key: |
+@@OIDC_JWKS_KEY@@
+    clients:
+      - client_id: '@@OIDC_CLIENT_ID@@'
+        client_name: 'MCP Auth Proxy (test)'
+        client_secret: '@@OIDC_CLIENT_SECRET_HASH@@'
+        public: false
+        authorization_policy: 'one_factor'
+        require_pkce: false
+        pkce_challenge_method: ''
+        redirect_uris:
+          - 'http://localhost:8080/.auth/oidc/callback'
+        scopes:
+          - 'openid'
+          - 'profile'
+          - 'email'
+          - 'groups'
+          - 'offline_access'
+        grant_types:
+          - 'authorization_code'
+          - 'refresh_token'
+        response_types:
+          - 'code'
+        token_endpoint_auth_method: 'client_secret_post'
