@@ -1,8 +1,10 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createCookieFetch, type CookieFetch } from './helpers/cookie-fetch.ts'
 import { PROXY_BASE_URL } from './helpers/http-client.ts'
+import { mcpUnderTest } from './helpers/mcp-under-test.ts'
 import { generatePkce, randomState } from './helpers/pkce.ts'
 import { loadTestSecrets, type TestSecrets } from './helpers/test-secrets.ts'
 
@@ -31,6 +33,8 @@ interface AsMetadata {
   token_endpoint: string
   registration_endpoint: string
 }
+
+const mcp = mcpUnderTest()
 
 let http: CookieFetch
 let secrets: TestSecrets
@@ -256,16 +260,21 @@ test('full OAuth handshake: Authelia login + consent -> proxy bearer -> authenti
   )
   try {
     await client.connect(transport)
-    const { tools } = await client.listTools()
+    // Low-level tools/list request: returns the same result as the high-level
+    // listTools() but skips its optional output-schema validator pre-compilation.
+    // mcp-auth-proxy 2.10.2 rewrites a tool schema's `definitions` keyword to
+    // `$defs` while leaving the `#/definitions/...` $ref targets intact (an
+    // upstream proxy bug surfaced by todoist's get-overview schema), which makes
+    // that pre-compilation throw. The auth path + tool names are what this test
+    // asserts, so we read the tools directly.
+    const { tools } = await client.request(
+      { method: 'tools/list', params: {} },
+      ListToolsResultSchema,
+    )
     const names = tools.map((t) => t.name)
     expect(names.length).toBeGreaterThan(0)
     // Same tool subset asserted by the Tier-1 stdio test.
-    for (const expected of [
-      'get-workouts',
-      'get-routines',
-      'get-exercise-templates',
-      'get-user-info',
-    ]) {
+    for (const expected of mcp.expectedTools) {
       expect(names).toContain(expected)
     }
   } finally {

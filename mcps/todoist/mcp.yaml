@@ -1,0 +1,6 @@
+name: todoist
+displayName: "Todoist MCP"
+mcpPackage: "@doist/todoist-mcp"
+mcpBin: todoist-mcp
+runtime:
+  apiKeyEnv: TODOIST_API_KEY

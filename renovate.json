@@ -30,6 +30,12 @@
       "semanticCommitScope": "hevy"
     },
     {
+      "description": "Todoist MCP npm package — scope 'todoist' (versions only the todoist image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/todoist/package.json"],
+      "semanticCommitScope": "todoist"
+    },
+    {
       "description": "minor → feat → composite minor bump (Appendix B.2).",
       "matchUpdateTypes": ["minor"],
       "semanticCommitType": "feat"

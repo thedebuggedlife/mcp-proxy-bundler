@@ -6,7 +6,7 @@ import { discoverMcps } from '../../scripts/discover-mcps.ts'
 
 describe('ci matrix discovery', () => {
   it('discovers the real mcps/ directory', () => {
-    expect(discoverMcps()).toEqual(['hevy'])
+    expect(discoverMcps()).toEqual(['hevy', 'todoist'])
   })
 
   describe('with a synthetic mcps dir', () => {
