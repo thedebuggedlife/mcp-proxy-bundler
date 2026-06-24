@@ -1,6 +1,5 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createCookieFetch, type CookieFetch } from './helpers/cookie-fetch.ts'
 import { PROXY_BASE_URL } from './helpers/http-client.ts'
@@ -260,17 +259,13 @@ test('full OAuth handshake: Authelia login + consent -> proxy bearer -> authenti
   )
   try {
     await client.connect(transport)
-    // Low-level tools/list request: returns the same result as the high-level
-    // listTools() but skips its optional output-schema validator pre-compilation.
-    // mcp-auth-proxy 2.10.2 rewrites a tool schema's `definitions` keyword to
-    // `$defs` while leaving the `#/definitions/...` $ref targets intact (an
-    // upstream proxy bug surfaced by todoist's get-overview schema), which makes
-    // that pre-compilation throw. The auth path + tool names are what this test
-    // asserts, so we read the tools directly.
-    const { tools } = await client.request(
-      { method: 'tools/list', params: {} },
-      ListToolsResultSchema,
-    )
+    // WORKAROUND(mcp-auth-proxy#178): high-level listTools() ajv-compiles tool
+    // output schemas, which would throw on the proxy's dangling `$ref` — except
+    // the in-image stdio schema-normalizer shim (mcp-schema-shim.cjs) prevents
+    // the dangling ref. Using listTools() here is the regression guard that real
+    // SDK clients are protected; it stays valid once #178 is fixed upstream and
+    // the shim is removed.
+    const { tools } = await client.listTools()
     const names = tools.map((t) => t.name)
     expect(names.length).toBeGreaterThan(0)
     // Same tool subset asserted by the Tier-1 stdio test.

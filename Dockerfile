@@ -18,6 +18,10 @@ WORKDIR /app
 COPY ${MCP_DIR}/package.json ${MCP_DIR}/package-lock.json ./
 RUN npm ci --omit=dev
 
+# WORKAROUND(mcp-auth-proxy#178): stdio schema-normalizer shim. Remove with the
+# shim (see mcp-schema-shim.cjs header + entrypoint.sh) once #178 is fixed upstream.
+COPY mcp-schema-shim.cjs /app/mcp-schema-shim.cjs
+
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 ENV MCP_BIN=$MCP_BIN
