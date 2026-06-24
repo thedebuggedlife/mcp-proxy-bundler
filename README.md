@@ -166,9 +166,10 @@ upstream major → composite major, minor → minor, patch → patch — for whi
 package, or Node base). A digest-only base rebuild maps to a patch bump.
 
 Per-image versions use **scope-based commit routing**: one semantic-release run per image (tag prefix
-`mcp-<name>-v*`) accepts its own commit scope (`hevy`/`todoist`) plus the shared `proxy`/`node` scopes — so
-a shared base bump versions every image while an MCP bump versions only its own. Tags published:
-`:<semver>` + `:latest`.
+`mcp-<name>-v*`) accepts its own commit scope (`hevy`/`todoist`) plus the shared `proxy`/`node`/`image`
+scopes — so a shared change versions every image while an MCP bump versions only its own. Any other commit
+(unscoped, or `ci:`/`docs:`/`chore:`) releases nothing — see [CLAUDE.md](./CLAUDE.md) for the conventions.
+Tags published: `:<semver>` + `:latest`.
 
 **Apply/review policy is the consumer's, not the bundler's.** This repo versions honestly and stamps
 "what changed"; deciding which updates auto-apply vs. require review (including "always review when the edge

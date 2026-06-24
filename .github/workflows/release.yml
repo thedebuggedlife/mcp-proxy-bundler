@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
-      scopes: ${{ steps.set.outputs.scopes }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,8 +26,6 @@ jobs:
         run: |
           matrix="$(node scripts/discover-mcps.ts)"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          scopes="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).join(","))' "$matrix")"
-          echo "scopes=$scopes" >> "$GITHUB_OUTPUT"
 
   release:
     name: Release (${{ matrix.mcp }})
@@ -58,5 +55,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MCP_NAME: ${{ matrix.mcp }}
-          MCP_SCOPES: ${{ needs.discover.outputs.scopes }}
         run: npx semantic-release
