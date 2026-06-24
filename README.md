@@ -19,6 +19,70 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 - Each image carries **honest semver** and OCI labels recording exactly what changed.
 - Adding an MCP is two files plus a lockfile.
 
+## Available MCPs
+
+| MCP | Image | Upstream package | Source |
+|---|---|---|---|
+| Hevy | `ghcr.io/thedebuggedlife/mcp-hevy` | [`hevy-mcp`](https://www.npmjs.com/package/hevy-mcp) | [chrisdoc/hevy-mcp](https://github.com/chrisdoc/hevy-mcp) |
+| Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
+
+**Want another MCP?** [Open a new-MCP request](https://github.com/thedebuggedlife/mcp-proxy-bundler/issues/new?template=new-mcp.yml)
+with the npm package and, if you know them, its stdio bin and API-key env var. Most stdio MCPs onboard as a
+[config-only change](#how-to-add-a-new-mcp) — which you're also welcome to send as a PR yourself.
+
+## How to use (deploy a published image)
+
+Each image is self-contained — the proxy and the MCP are baked in. To run one you supply your IdP
+config, the MCP's API key, and **one persistent volume** for the proxy's OAuth state. A minimal
+`docker-compose.yml` for `mcp-hevy` (front it with your own TLS-terminating reverse proxy or tunnel):
+
+```yaml
+services:
+  mcp-hevy:
+    image: ghcr.io/thedebuggedlife/mcp-hevy:1.0.0   # pin a semver; see Versioning for auto-update
+    restart: unless-stopped
+    environment:
+      # Public URL of THIS proxy — issuer + base for every advertised OAuth endpoint.
+      # Stays https even though the container listens HTTP: TLS is terminated upstream.
+      EXTERNAL_URL: "https://hevy.example.com"
+      # Your OIDC provider (any compliant IdP; Authelia shown).
+      OIDC_CONFIGURATION_URL: "https://auth.example.com/.well-known/openid-configuration"
+      OIDC_CLIENT_ID: "mcp-hevy"
+      OIDC_CLIENT_SECRET: "${MCP_HEVY_OIDC_CLIENT_SECRET}"   # from a gitignored .env, never committed
+      OIDC_SCOPES: "openid,profile,email,groups"
+      OIDC_ALLOWED_ATTRIBUTES: "/groups=mcp-admins"          # who is allowed in
+      OIDC_USER_ID_FIELD: "/email"
+      OIDC_PROVIDER_NAME: "Authelia"
+      # The MCP's own API key. The var NAME comes from this image's mcp.yaml (runtime.apiKeyEnv).
+      HEVY_API_KEY: "${HEVY_API_KEY}"                        # from a gitignored .env, never committed
+      # Listen plain HTTP and let the reverse proxy / tunnel terminate TLS.
+      NO_AUTO_TLS: "true"
+      LISTEN: ":8080"
+      TRUSTED_PROXIES: "172.16.0.0/12"                       # CIDR of your reverse proxy
+    volumes:
+      # REQUIRED for token continuity. The proxy writes its JWT signing key + the OAuth
+      # client/token DB here; without a persistent mount they reset on every container
+      # recreate and ALL clients must re-authenticate. The host dir MUST be writable by
+      # uid 1000 (the image runs as 1000:1000) — bind mounts do NOT inherit image ownership:
+      #   mkdir -p ./appdata/hevy && sudo chown -R 1000:1000 ./appdata/hevy
+      - ./appdata/hevy:/data
+    extra_hosts:
+      # Telemetry black-hole — entries come from this image's mcp.yaml (runtime.telemetryHosts).
+      - "o4508975499575296.ingest.de.sentry.io:127.0.0.1"
+    ports:
+      - "8080:8080"   # or drop this and route via your reverse proxy's Docker network
+```
+
+- **Don't skip the `/data` volume.** It is the one piece of required state; everything else the image
+  regenerates on start. See the [Runtime contract](#runtime-contract-what-a-consumer-must-supply) for the
+  details and the uid-1000 ownership requirement.
+- **TLS:** the example assumes something upstream terminates TLS. To let the proxy do ACME itself, drop
+  `NO_AUTO_TLS`/`LISTEN`/`TRUSTED_PROXIES`, give `EXTERNAL_URL` a public https host, and expose 80/443.
+- **Per-MCP facts** (the `apiKeyEnv` name and any `telemetryHosts`) live in that image's
+  `mcps/<name>/mcp.yaml`. The full env reference is the
+  [Runtime contract](#runtime-contract-what-a-consumer-must-supply); tag pinning and auto-update are under
+  [Versioning](#versioning).
+
 ## Repository layout
 
 ```
@@ -175,14 +239,46 @@ Tags published: `:<semver>` + `:latest`.
 "what changed"; deciding which updates auto-apply vs. require review (including "always review when the edge
 proxy changed") is owned by the consumer.
 
-## Deployment
+### What a version bump looks like
 
-This repo produces **images only**. Deploying an image as a live MCP (compose service, IdP client, tunnel
-hostname, secrets, auto-update wiring) is the consumer's job. The deploy blueprint is hand-maintained in the
-private [`avargaskun/unraid-agent`](https://github.com/avargaskun/unraid-agent) consumer repo — no consumer
-artifacts are generated here, keeping this repo decoupled and secret-free. `mcp.yaml` is the contract the
-consumer reads when hand-writing each deployment: `runtime.apiKeyEnv` (which secret to supply),
-`runtime.telemetryHosts` (the `extra_hosts` black-hole entries), and `mcpBin`/`name`.
+Every input maps to one Conventional Commit on `main`, which `release.config.js` routes to the right
+image(s). Using `mcp-hevy` as the example:
+
+| Input that changed | Commit on `main` (author) | `mcp-hevy` | other images |
+|---|---|---|---|
+| `hevy-mcp` upstream **patch** / digest re-pin | `fix(hevy): …` (Renovate) | patch | — |
+| `hevy-mcp` upstream **minor** | `feat(hevy): …` (Renovate) | minor | — |
+| `hevy-mcp` upstream **major** | `feat(hevy): …` + `BREAKING CHANGE:` footer (Renovate) | major | — |
+| `mcp-auth-proxy` edge bump | `fix(proxy):` / `feat(proxy): …` (Renovate) | per severity | **all bump** |
+| `node` base bump (LTS) | `fix(node):` / `feat(node): …` (Renovate) | per severity | **all bump** |
+| image runtime change (entrypoint, schema shim, baked script) | `fix(image):` / `feat(image): …` (us) | per severity | **all bump** |
+
+"Per severity" follows the same rule as the MCP rows: `feat` → minor, `fix`/digest → patch,
+`BREAKING CHANGE:` → major. A shared scope (`proxy`/`node`/`image`) versions **every** image; an MCP scope
+versions only its own.
+
+### Auto-updating (WUD and friends)
+
+Collapsing four moving inputs into **one semver per image** is what makes registry-based auto-update work:
+a watcher only sees image **tags**, not the proxy/Node/MCP versions baked inside. One honest semver means
+any change produces exactly one higher, comparable number to act on — while the [OCI labels](#oci-labels)
+and the GitHub release notes still record *which* input moved, so you can gate "review when the edge proxy
+changed."
+
+Images publish `:<semver>` and `:latest`. Pin the semver tag and let [WUD](https://github.com/getwud/wud)
+watch the series — add these labels to the service in your compose:
+
+```yaml
+    labels:
+      wud.watch: "true"
+      wud.tag.include: '^\d+\.\d+\.\d+$'
+      wud.link.template: "https://github.com/thedebuggedlife/mcp-proxy-bundler/releases"
+```
+
+With the service pinned to e.g. `:1.4.2`, WUD flags `1.4.3` / `1.5.0` / `2.0.0` as they publish. Run WUD
+**notify-only** to review before applying, or let it auto-update — that apply/review choice is yours (see
+the policy above). To track a moving tag instead, pin `:latest` and add `wud.watch.digest: "true"` so WUD
+notices re-pinned digests.
 
 ## Public-repo hygiene
 

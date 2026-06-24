@@ -1,0 +1,68 @@
+name: New MCP request
+description: Request that a new MCP be bundled and published as a hardened image.
+title: "[New MCP]: "
+labels: ["new-mcp"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an MCP! Onboarding is a
+        [config-only change](https://github.com/thedebuggedlife/mcp-proxy-bundler#how-to-add-a-new-mcp),
+        so the more of the fields below you can fill in, the faster it can ship. The fields map directly to
+        the image's `mcp.yaml` contract.
+  - type: input
+    id: package
+    attributes:
+      label: npm package
+      description: The published npm package that provides the MCP server.
+      placeholder: "@scope/some-mcp  or  some-mcp"
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source / docs
+      description: Link to the MCP's repository or documentation.
+      placeholder: "https://github.com/owner/repo"
+    validations:
+      required: true
+  - type: dropdown
+    id: stdio
+    attributes:
+      label: Does it support stdio transport?
+      description: >-
+        This bundler bakes a stdio MCP behind the proxy. HTTP-only servers need the co-process fallback and
+        are lower priority.
+      options:
+        - "Yes — it runs as a stdio server"
+        - "No / HTTP-only"
+        - "Not sure"
+    validations:
+      required: true
+  - type: input
+    id: bin
+    attributes:
+      label: stdio bin name
+      description: The command from the package's `bin` field (becomes `mcpBin`). Leave blank if unsure.
+      placeholder: "some-mcp"
+  - type: input
+    id: apikeyenv
+    attributes:
+      label: API key env var
+      description: >-
+        The environment variable the MCP reads its credential from (becomes `runtime.apiKeyEnv`). Leave
+        blank if it needs none.
+      placeholder: "SOME_API_KEY"
+  - type: textarea
+    id: telemetry
+    attributes:
+      label: Telemetry hosts (optional)
+      description: >-
+        Any hostnames the server phones home to that should be black-holed (becomes
+        `runtime.telemetryHosts`), one per line.
+      placeholder: "o123456.ingest.sentry.io"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Special Node version needs, auth quirks, etc.
