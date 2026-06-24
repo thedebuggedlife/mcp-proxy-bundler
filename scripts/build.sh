@@ -28,6 +28,9 @@ NODE_OVERRIDE="$(get_meta nodeVersion)"
 # Parse proxy + node versions from the literal Dockerfile FROM tags (design Appendix B.3).
 PROXY_VERSION="$(sed -n 's#^FROM ghcr.io/sigbit/mcp-auth-proxy:\([^ ]*\).*#\1#p' "$DOCKERFILE" | head -n1)"
 NODE_TAG="$(sed -n 's#^FROM node:\([^ ]*\).*#\1#p' "$DOCKERFILE" | head -n1)"
+# strip a Renovate pinDigests `@sha256:...` suffix so version labels stay clean
+PROXY_VERSION="${PROXY_VERSION%@*}"
+NODE_TAG="${NODE_TAG%@*}"
 NODE_VERSION="${NODE_TAG%-slim}"
 
 [ -n "$PROXY_VERSION" ] || { echo "error: could not parse proxy version from $DOCKERFILE" >&2; exit 1; }
