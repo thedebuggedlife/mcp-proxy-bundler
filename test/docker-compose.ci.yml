@@ -5,8 +5,10 @@
 #
 # Env consumed (from test/.secrets/test.env via --env-file):
 #   OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, PROXY_AUTH_HMAC_SECRET, MCP_API_KEY
-# Plus IMAGE_UNDER_TEST (defaults to the hevy dev image) and the telemetry
-# extra_hosts (passed via the proxy service definition below).
+# Plus IMAGE_UNDER_TEST (defaults to the hevy dev image). The MCP-specific bits
+# (the API-key env var name + telemetry extra_hosts) come from a per-MCP override
+# (test/.secrets/compose.mcp.yml, rendered by scripts/gen-compose-override.ts and
+# merged via an extra `-f`), keeping this base file MCP-agnostic.
 
 services:
   redis:
@@ -73,15 +75,14 @@ services:
       OIDC_PROVIDER_NAME: 'Authelia'
       OIDC_USER_ID_FIELD: '/email'
       AUTH_HMAC_SECRET: '${PROXY_AUTH_HMAC_SECRET}'
-      HEVY_API_KEY: '${MCP_API_KEY}'
     volumes:
       - ./.secrets/authelia/proxy-ca.crt:/test-certs/proxy-ca.crt:ro
     ports:
       - '8080:8080'
-    # Telemetry black-hole (D10 / Finding 11): test-integration.sh renders an
-    # override compose file (test/.secrets/compose.telemetry.yml) that adds an
-    # `extra_hosts` block mapping each mcp.yaml telemetryHosts entry to
-    # 127.0.0.1 and ::1, merged via an extra `-f`.
+    # The per-MCP override (compose.mcp.yml) injects this MCP's API-key env var
+    # (named per mcp.yaml runtime.apiKeyEnv) and a telemetry-black-hole
+    # `extra_hosts` block (D10 / Finding 11) mapping each telemetryHosts entry to
+    # 127.0.0.1 and ::1.
     # /data must be writable by the non-root (USER 1000) proxy (Finding 4): the
     # proxy writes secret, private_key.pem, and the bbolt db on first start.
     tmpfs:
