@@ -2,16 +2,13 @@
 // One run per MCP: tagFormat gives each image an independent semver lineage, and
 // commit-analyzer releaseRules route by conventional-commit scope so a shared
 // proxy/node bump versions every image while an MCP bump versions only its own.
+// Release rules live in a separate, unit-tested helper (test/unit/release-rules.test.ts).
+import { releaseRulesFor } from './scripts/lib/release-rules.ts'
+
 const name = process.env.MCP_NAME
 if (!name) {
   throw new Error('MCP_NAME env var is required to select the per-image release config')
 }
-
-const otherScopeRules = (process.env.MCP_SCOPES ?? '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter((s) => s && s !== name)
-  .map((scope) => ({ scope, release: false }))
 
 export default {
   branches: ['main'],
@@ -21,15 +18,7 @@ export default {
       '@semantic-release/commit-analyzer',
       {
         preset: 'angular',
-        releaseRules: [
-          { scope: name, type: 'feat', release: 'minor' },
-          { scope: name, type: 'fix', release: 'patch' },
-          { scope: 'proxy', type: 'feat', release: 'minor' },
-          { scope: 'proxy', type: 'fix', release: 'patch' },
-          { scope: 'node', type: 'feat', release: 'minor' },
-          { scope: 'node', type: 'fix', release: 'patch' },
-          ...otherScopeRules,
-        ],
+        releaseRules: releaseRulesFor(name),
       },
     ],
     [
