@@ -1,8 +1,8 @@
 # Stage 1: pinned mcp-auth-proxy Go binary (Renovate docker manager updates this tag)
-FROM ghcr.io/sigbit/mcp-auth-proxy:2.10.2 AS proxy
+FROM ghcr.io/sigbit/mcp-auth-proxy:2.10.2@sha256:f92e0ccd22b2a7585bccedc366a3c872bbfa3500c7fa5e7443b40962bf248e8d AS proxy
 
 # Stage 2: shared Node base (Renovate docker manager updates this tag). node:26 satisfies all current MCPs.
-FROM node:26.3.1-slim
+FROM node:26.3.1-slim@sha256:191ef878ecb351d68b78219593de18bd8942afd59af59f29960dc4b24805a3f1
 ARG MCP_DIR
 ARG MCP_BIN
 
