@@ -6,7 +6,7 @@ export interface McpUnderTest {
   name: string
   image: string
   mcpBin: string
-  apiKeyEnv: string
+  apiKeyEnvs: string[]
   // A resilient subset of stable tool names (asserted as a contained-subset, not
   // exact equality, so upstream tool additions don't break the test).
   expectedTools: string[]
@@ -18,7 +18,7 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
   hevy: {
     name: 'hevy',
     mcpBin: 'hevy-mcp',
-    apiKeyEnv: 'HEVY_API_KEY',
+    apiKeyEnvs: ['HEVY_API_KEY'],
     expectedTools: [
       'get-workouts',
       'get-routines',
@@ -29,8 +29,14 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
   todoist: {
     name: 'todoist',
     mcpBin: 'todoist-mcp',
-    apiKeyEnv: 'TODOIST_API_KEY',
+    apiKeyEnvs: ['TODOIST_API_KEY'],
     expectedTools: ['find-tasks', 'add-tasks', 'find-projects', 'find-labels'],
+  },
+  trello: {
+    name: 'trello',
+    mcpBin: 'mcp-server-trello',
+    apiKeyEnvs: ['TRELLO_API_KEY', 'TRELLO_TOKEN'],
+    expectedTools: ['get_lists', 'get_cards_by_list_id', 'add_card_to_list'],
   },
 }
 

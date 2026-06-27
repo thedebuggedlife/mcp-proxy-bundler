@@ -3,7 +3,8 @@ displayName: "Valid MCP"
 mcpPackage: valid-mcp
 mcpBin: valid-mcp
 runtime:
-  apiKeyEnv: VALID_API_KEY
+  apiKeyEnvs:
+    - VALID_API_KEY
   telemetryHosts:
     - telemetry.example.com
     - o123456789.ingest.de.sentry.io

@@ -3,4 +3,5 @@ displayName: "Package Mismatch MCP"
 mcpPackage: not-the-installed-package
 mcpBin: package-mismatch
 runtime:
-  apiKeyEnv: PACKAGE_MISMATCH_API_KEY
+  apiKeyEnvs:
+    - PACKAGE_MISMATCH_API_KEY

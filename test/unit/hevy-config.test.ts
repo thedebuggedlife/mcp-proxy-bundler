@@ -10,7 +10,7 @@ describe('hevy mcp config', () => {
       mcpBin: 'hevy-mcp',
       displayName: 'Hevy MCP',
       nodeVersion: undefined,
-      apiKeyEnv: 'HEVY_API_KEY',
+      apiKeyEnvs: ['HEVY_API_KEY'],
       telemetryHosts: ['o4508975499575296.ingest.de.sentry.io'],
     })
   })

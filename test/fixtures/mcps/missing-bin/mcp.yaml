@@ -2,4 +2,5 @@ name: missing-bin
 displayName: "Missing Bin MCP"
 mcpPackage: missing-bin-mcp
 runtime:
-  apiKeyEnv: MISSING_BIN_API_KEY
+  apiKeyEnvs:
+    - MISSING_BIN_API_KEY

@@ -16,7 +16,7 @@ export const McpConfigSchema = z
     nodeVersion: z.string().min(1).optional(),
     runtime: z
       .object({
-        apiKeyEnv: z.string().min(1).optional(),
+        apiKeyEnvs: z.array(z.string().min(1)).optional(),
         telemetryHosts: z
           .array(z.string().regex(hostnameRegex, 'must be a valid hostname'))
           .optional(),
@@ -34,7 +34,7 @@ export interface NormalizedMcpConfig {
   mcpBin: string
   displayName: string
   nodeVersion?: string
-  apiKeyEnv?: string
+  apiKeyEnvs: string[]
   telemetryHosts: string[]
 }
 
@@ -112,7 +112,7 @@ export function loadMcpConfig(
     mcpBin: config.mcpBin,
     displayName: config.displayName ?? config.name,
     nodeVersion: config.nodeVersion,
-    apiKeyEnv: config.runtime?.apiKeyEnv,
+    apiKeyEnvs: config.runtime?.apiKeyEnvs ?? [],
     telemetryHosts: config.runtime?.telemetryHosts ?? [],
   }
 }

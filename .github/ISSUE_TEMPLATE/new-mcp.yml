@@ -48,10 +48,11 @@ body:
   - type: input
     id: apikeyenv
     attributes:
-      label: API key env var
+      label: API key env var(s)
       description: >-
-        The environment variable the MCP reads its credential from (becomes `runtime.apiKeyEnv`). Leave
-        blank if it needs none.
+        The environment variable(s) the MCP reads its credential(s) from (becomes `runtime.apiKeyEnvs`).
+        List all of them if it needs more than one (e.g. `TRELLO_API_KEY, TRELLO_TOKEN`). Leave blank if
+        it needs none.
       placeholder: "SOME_API_KEY"
   - type: textarea
     id: telemetry

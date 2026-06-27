@@ -79,8 +79,8 @@ services:
       - ./.secrets/authelia/proxy-ca.crt:/test-certs/proxy-ca.crt:ro
     ports:
       - '8080:8080'
-    # The per-MCP override (compose.mcp.yml) injects this MCP's API-key env var
-    # (named per mcp.yaml runtime.apiKeyEnv) and a telemetry-black-hole
+    # The per-MCP override (compose.mcp.yml) injects this MCP's API-key env var(s)
+    # (named per mcp.yaml runtime.apiKeyEnvs) and a telemetry-black-hole
     # `extra_hosts` block (D10 / Finding 11) mapping each telemetryHosts entry to
     # 127.0.0.1 and ::1.
     # /data must be writable by the non-root (USER 1000) proxy (Finding 4): the

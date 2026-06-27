@@ -3,8 +3,8 @@ import { loadMcpConfig } from './lib/mcp-config.ts'
 // Emits a docker-compose override (to stdout) for the image-under-test that is
 // specific to the selected MCP, so the base test/docker-compose.ci.yml stays
 // MCP-agnostic (Phase 15: config-only onboarding):
-//   - the MCP's API-key env var (named per mcp.yaml runtime.apiKeyEnv) set to
-//     the ephemeral ${MCP_API_KEY} (compose interpolates it from --env-file);
+//   - the MCP's API-key env vars (named per mcp.yaml runtime.apiKeyEnvs) each set
+//     to the ephemeral ${MCP_API_KEY} (compose interpolates it from --env-file);
 //   - extra_hosts black-holing each runtime.telemetryHosts entry to 127.0.0.1
 //     and ::1 (D10 / Finding 11), keeping the test hermetic.
 
@@ -18,10 +18,12 @@ function main(): void {
   const config = loadMcpConfig(name)
   const lines: string[] = ['services:', '  image-under-test:']
 
-  // The stdio child reads its API key from the MCP-specific env var name.
-  if (config.apiKeyEnv) {
+  // The stdio child reads its API key(s) from the MCP-specific env var name(s).
+  if (config.apiKeyEnvs.length > 0) {
     lines.push('    environment:')
-    lines.push(`      ${config.apiKeyEnv}: '\${MCP_API_KEY}'`)
+    for (const env of config.apiKeyEnvs) {
+      lines.push(`      ${env}: '\${MCP_API_KEY}'`)
+    }
   }
 
   if (config.telemetryHosts.length === 0) {

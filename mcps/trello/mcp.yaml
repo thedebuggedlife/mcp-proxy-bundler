@@ -1,0 +1,8 @@
+name: trello
+displayName: "Trello MCP"
+mcpPackage: "@delorenj/mcp-server-trello"
+mcpBin: mcp-server-trello
+runtime:
+  apiKeyEnvs:
+    - TRELLO_API_KEY
+    - TRELLO_TOKEN

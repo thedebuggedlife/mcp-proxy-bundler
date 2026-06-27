@@ -10,7 +10,7 @@ beforeAll(async () => {
   conn = await connectBakedMcp({
     image: mcp.image,
     mcpBin: mcp.mcpBin,
-    apiKeyEnv: mcp.apiKeyEnv,
+    apiKeyEnvs: mcp.apiKeyEnvs,
   })
 })
 

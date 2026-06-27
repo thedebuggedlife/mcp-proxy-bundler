@@ -25,6 +25,7 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 |---|---|---|---|
 | Hevy | `ghcr.io/thedebuggedlife/mcp-hevy` | [`hevy-mcp`](https://www.npmjs.com/package/hevy-mcp) | [chrisdoc/hevy-mcp](https://github.com/chrisdoc/hevy-mcp) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
+| Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
 
 **Want another MCP?** [Open a new-MCP request](https://github.com/thedebuggedlife/mcp-proxy-bundler/issues/new?template=new-mcp.yml)
 with the npm package and, if you know them, its stdio bin and API-key env var. Most stdio MCPs onboard as a
@@ -53,7 +54,7 @@ services:
       OIDC_ALLOWED_ATTRIBUTES: "/groups=mcp-admins"          # who is allowed in
       OIDC_USER_ID_FIELD: "/email"
       OIDC_PROVIDER_NAME: "Authelia"
-      # The MCP's own API key. The var NAME comes from this image's mcp.yaml (runtime.apiKeyEnv).
+      # The MCP's own API key(s). The var NAME(s) come from this image's mcp.yaml (runtime.apiKeyEnvs).
       HEVY_API_KEY: "${HEVY_API_KEY}"                        # from a gitignored .env, never committed
       # Listen plain HTTP and let the reverse proxy / tunnel terminate TLS.
       NO_AUTO_TLS: "true"
@@ -78,7 +79,7 @@ services:
   details and the uid-1000 ownership requirement.
 - **TLS:** the example assumes something upstream terminates TLS. To let the proxy do ACME itself, drop
   `NO_AUTO_TLS`/`LISTEN`/`TRUSTED_PROXIES`, give `EXTERNAL_URL` a public https host, and expose 80/443.
-- **Per-MCP facts** (the `apiKeyEnv` name and any `telemetryHosts`) live in that image's
+- **Per-MCP facts** (the `apiKeyEnvs` names and any `telemetryHosts`) live in that image's
   `mcps/<name>/mcp.yaml`. The full env reference is the
   [Runtime contract](#runtime-contract-what-a-consumer-must-supply); tag pinning and auto-update are under
   [Versioning](#versioning).
@@ -147,8 +148,11 @@ auto-discovers `mcps/*`).
    ```sh
    npm install --prefix mcps/<name> --package-lock-only
    ```
+   If the package mis-declares a test/eval dependency as a runtime one (so `npm ci --omit=dev` would bake
+   it), stub it out with an `overrides` entry in `package.json` rather than letting it bloat the image —
+   e.g. `mcps/trello` maps the mis-packaged `mcp-evals` to `npm:empty-npm-package@1.0.0`.
 3. **Create `mcps/<name>/mcp.yaml`** (see the contract below). Use the package's `bin` field to find the
-   **stdio** bin name for `mcpBin`, and the MCP's docs to find the env var it reads for `runtime.apiKeyEnv`.
+   **stdio** bin name for `mcpBin`, and the MCP's docs to find the env var(s) it reads for `runtime.apiKeyEnvs`.
 4. **Build and test locally:**
    ```sh
    ./scripts/build.sh <name>
@@ -169,7 +173,7 @@ secrets, or UI fields). The schema is validated by `scripts/lib/mcp-config.ts`.
 | `mcpBin` | yes | The stdio bin to spawn (`node_modules/.bin/<mcpBin>`) |
 | `displayName` | no | Human label (defaults to `name`) |
 | `nodeVersion` | no | Per-MCP Node base override. **Schema-accepted but not yet wired into the build** — `build.sh` errors clearly if it differs from the shared base, rather than silently ignoring it. |
-| `runtime.apiKeyEnv` | no | The env var the MCP reads at runtime — supplied by the consumer, **not baked** |
+| `runtime.apiKeyEnvs` | no | List of env vars the MCP reads at runtime (one or more credentials) — supplied by the consumer, **not baked** |
 | `runtime.telemetryHosts` | no | Hostnames the consumer should black-hole via `extra_hosts` (telemetry egress control) |
 
 Example (`mcps/hevy/mcp.yaml`):
@@ -180,10 +184,14 @@ displayName: "Hevy MCP"
 mcpPackage: hevy-mcp
 mcpBin: hevy-mcp
 runtime:
-  apiKeyEnv: HEVY_API_KEY
+  apiKeyEnvs:
+    - HEVY_API_KEY
   telemetryHosts:
     - o4508975499575296.ingest.de.sentry.io
 ```
+
+MCPs that need more than one credential list them all under `apiKeyEnvs` (the consumer supplies each at
+runtime). For example, `mcps/trello/mcp.yaml` declares both `TRELLO_API_KEY` and `TRELLO_TOKEN`.
 
 ## Runtime contract (what a consumer must supply)
 
@@ -202,7 +210,7 @@ env-var names are the verified `mcp-auth-proxy` contract (design Appendix A):
 | `TRUSTED_PROXIES` | IP/CIDR list of trusted upstream proxies |
 | `NO_AUTO_TLS`, `LISTEN` | Proxy listener config |
 | `DATA_PATH` (`/data`) | Holds `private_key.pem` (JWT signing key) + the bbolt `db` (registered OAuth clients/tokens). **Must be writable by uid 1000** (the image runs as `1000:1000`). |
-| `<apiKeyEnv>` (e.g. `HEVY_API_KEY`) | Passed through to the stdio MCP child |
+| `<apiKeyEnvs>` (e.g. `HEVY_API_KEY`; Trello needs `TRELLO_API_KEY` + `TRELLO_TOKEN`) | Passed through to the stdio MCP child |
 
 **Token continuity:** mount `DATA_PATH=/data` to a per-instance persistent host directory. The proxy keeps
 its signing key and registered-client/token database there, so image swaps are token-safe — clients do
