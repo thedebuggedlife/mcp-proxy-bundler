@@ -4,7 +4,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 export interface BakedMcpOptions {
   image: string
   mcpBin: string
-  apiKeyEnv: string
+  apiKeyEnvs: string[]
   apiKeyValue?: string
 }
 
@@ -23,12 +23,16 @@ export async function connectBakedMcp(
   const apiKeyValue = opts.apiKeyValue ?? 'dummy'
   const binPath = `/app/node_modules/.bin/${opts.mcpBin}`
 
+  const envArgs = opts.apiKeyEnvs.flatMap((env) => [
+    '-e',
+    `${env}=${apiKeyValue}`,
+  ])
+
   const args = [
     'run',
     '-i',
     '--rm',
-    '-e',
-    `${opts.apiKeyEnv}=${apiKeyValue}`,
+    ...envArgs,
     '--entrypoint',
     binPath,
     opts.image,

@@ -15,7 +15,7 @@ describe('loadMcpConfig', () => {
       mcpBin: 'valid-mcp',
       displayName: 'Valid MCP',
       nodeVersion: undefined,
-      apiKeyEnv: 'VALID_API_KEY',
+      apiKeyEnvs: ['VALID_API_KEY'],
       telemetryHosts: ['telemetry.example.com', 'o123456789.ingest.de.sentry.io'],
     })
   })

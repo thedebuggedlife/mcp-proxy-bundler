@@ -3,6 +3,7 @@ displayName: "Hevy MCP"
 mcpPackage: hevy-mcp
 mcpBin: hevy-mcp
 runtime:
-  apiKeyEnv: HEVY_API_KEY
+  apiKeyEnvs:
+    - HEVY_API_KEY
   telemetryHosts:
     - o4508975499575296.ingest.de.sentry.io

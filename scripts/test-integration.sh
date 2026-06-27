@@ -19,8 +19,8 @@ fi
 # Generate ephemeral secrets + rendered Authelia config (D13).
 "$SCRIPT_DIR/gen-test-secrets.sh"
 
-# Render a per-MCP compose override: sets the MCP's API-key env var (named per
-# mcp.yaml runtime.apiKeyEnv) and black-holes its telemetry hosts (D10 /
+# Render a per-MCP compose override: sets the MCP's API-key env var(s) (named per
+# mcp.yaml runtime.apiKeyEnvs) and black-holes its telemetry hosts (D10 /
 # Finding 11). Keeps the base compose file MCP-agnostic.
 node "$SCRIPT_DIR/gen-compose-override.ts" "$MCP_NAME" >"$MCP_OVERRIDE"
 

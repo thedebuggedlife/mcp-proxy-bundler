@@ -10,7 +10,7 @@ describe('todoist mcp config', () => {
       mcpBin: 'todoist-mcp',
       displayName: 'Todoist MCP',
       nodeVersion: undefined,
-      apiKeyEnv: 'TODOIST_API_KEY',
+      apiKeyEnvs: ['TODOIST_API_KEY'],
       telemetryHosts: [],
     })
   })
