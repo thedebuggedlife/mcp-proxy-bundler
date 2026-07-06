@@ -54,3 +54,18 @@ jobs:
         env:
           MCP_NAME: ${{ matrix.mcp }}
         run: npm run test:integration
+
+  # Stable aggregate gate for branch protection: the dynamic matrix produces
+  # per-MCP check names, so require this fixed name instead. always() forces it
+  # to run even when a dependency fails (a skipped required check reads as green).
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [unit, discover, integration]
+    runs-on: ubuntu-latest
+    steps:
+      - if: >-
+          ${{ contains(needs.*.result, 'failure')
+            || contains(needs.*.result, 'cancelled')
+            || contains(needs.*.result, 'skipped') }}
+        run: exit 1
