@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@pasympa/discord-mcp": "2.0.0"
+  }
+}

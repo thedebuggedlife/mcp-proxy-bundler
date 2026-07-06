@@ -46,4 +46,9 @@ Use these for repo plumbing (CI, tests, docs, the release config itself).
 - `npm run test:unit` — unit tests (Vitest)
 - `./scripts/build.sh <mcp>` — build one image locally
 - `MCP_NAME=<mcp> npm run test:integration` — full real-Authelia integration suite for one image
-- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}` — no Dockerfile/CI changes needed.
+- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}`, then register `<name>` in
+  `renovate.json` (a `packageRule` scoping `mcps/<name>/package.json` bumps to `semanticCommitScope`
+  `<name>`, else upstream bumps never release — guarded by `test/unit/renovate-rules.test.ts`),
+  `test/integration/helpers/mcp-under-test.ts` (harness registry — bin, apiKeyEnvs, stable `expectedTools`)
+  and `test/unit/ci-matrix.test.ts` (inventory tripwire), and add a row to the README **Available MCPs**
+  table. No Dockerfile or CI-workflow change is needed (the matrix auto-discovers `mcps/*`).

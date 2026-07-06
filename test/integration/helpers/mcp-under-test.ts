@@ -15,6 +15,17 @@ export interface McpUnderTest {
 const REGISTRY = 'ghcr.io/thedebuggedlife'
 
 const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
+  discord: {
+    name: 'discord',
+    mcpBin: 'discord-mcp',
+    apiKeyEnvs: ['DISCORD_TOKEN'],
+    expectedTools: [
+      'discord_send_message',
+      'discord_read_messages',
+      'discord_create_channel',
+      'discord_add_reaction',
+    ],
+  },
   hevy: {
     name: 'hevy',
     mcpBin: 'hevy-mcp',
@@ -24,6 +35,19 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
       'get-routines',
       'get-exercise-templates',
       'get-user-info',
+    ],
+  },
+  pagerduty: {
+    name: 'pagerduty',
+    mcpBin: 'pagerduty-mcp',
+    apiKeyEnvs: ['PAGERDUTY_API_KEY', 'PAGERDUTY_USER_EMAIL'],
+    expectedTools: [
+      'list_incidents',
+      'get_incident',
+      'list_services',
+      'list_oncalls',
+      'acknowledge_incident',
+      'resolve_incident',
     ],
   },
   todoist: {

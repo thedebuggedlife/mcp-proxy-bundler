@@ -1,0 +1,8 @@
+name: pagerduty
+displayName: "PagerDuty MCP"
+mcpPackage: "@vineethnkrishnan/pagerduty-mcp"
+mcpBin: pagerduty-mcp
+runtime:
+  apiKeyEnvs:
+    - PAGERDUTY_API_KEY
+    - PAGERDUTY_USER_EMAIL

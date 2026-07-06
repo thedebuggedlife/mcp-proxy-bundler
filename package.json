@@ -17,7 +17,7 @@
     "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/node": "^24.0.0",
     "semantic-release": "^24.2.9",
-    "tough-cookie": "^5.1.2",
+    "tough-cookie": "^6.0.0",
     "typescript": "^5.9.2",
     "undici": "^7.16.0",
     "vitest": "^3.2.4",
