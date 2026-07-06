@@ -25,6 +25,7 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 |---|---|---|---|
 | Discord | `ghcr.io/thedebuggedlife/mcp-discord` | [`@pasympa/discord-mcp`](https://www.npmjs.com/package/@pasympa/discord-mcp) | [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) |
 | Hevy | `ghcr.io/thedebuggedlife/mcp-hevy` | [`hevy-mcp`](https://www.npmjs.com/package/hevy-mcp) | [chrisdoc/hevy-mcp](https://github.com/chrisdoc/hevy-mcp) |
+| PagerDuty | `ghcr.io/thedebuggedlife/mcp-pagerduty` | [`@vineethnkrishnan/pagerduty-mcp`](https://www.npmjs.com/package/@vineethnkrishnan/pagerduty-mcp) | [vineethkrishnan/mcp-pool](https://github.com/vineethkrishnan/mcp-pool/tree/main/packages/pagerduty) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
 | Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
 
@@ -227,6 +228,13 @@ env-var names are the verified `mcp-auth-proxy` contract (design Appendix A):
 **Token continuity:** mount `DATA_PATH=/data` to a per-instance persistent host directory. The proxy keeps
 its signing key and registered-client/token database there, so image swaps are token-safe — clients do
 not re-authenticate across an update.
+
+**MCP-specific optional env.** A few images read extra *optional* vars beyond their `apiKeyEnvs`.
+`mcp-pagerduty` reads `PAGERDUTY_BASE_URL` (defaults to `https://api.pagerduty.com`; use
+`https://api.eu.pagerduty.com` if your PagerDuty account is in the EU service region) — set it
+explicitly to pin the host your API token is sent to. Of its two `apiKeyEnvs`, only
+`PAGERDUTY_API_KEY` is required; `PAGERDUTY_USER_EMAIL` is just the author of the incident write
+tools (acknowledge/resolve/reassign/note), so a read-only deployment can leave it a placeholder.
 
 The proxy is the **sole gate**: `GET /mcp` unauthenticated returns `401` (not a portal redirect). It speaks
 OAuth 2.1 authorization-code + PKCE (S256) with Dynamic Client Registration toward downstream MCP clients.

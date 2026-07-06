@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@vineethnkrishnan/pagerduty-mcp": "0.1.4"
+  }
+}
