@@ -23,6 +23,7 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 
 | MCP | Image | Upstream package | Source |
 |---|---|---|---|
+| Discord | `ghcr.io/thedebuggedlife/mcp-discord` | [`@pasympa/discord-mcp`](https://www.npmjs.com/package/@pasympa/discord-mcp) | [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) |
 | Hevy | `ghcr.io/thedebuggedlife/mcp-hevy` | [`hevy-mcp`](https://www.npmjs.com/package/hevy-mcp) | [chrisdoc/hevy-mcp](https://github.com/chrisdoc/hevy-mcp) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
 | Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
