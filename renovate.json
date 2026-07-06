@@ -36,6 +36,12 @@
       "semanticCommitScope": "hevy"
     },
     {
+      "description": "PagerDuty MCP npm package — scope 'pagerduty' (versions only the pagerduty image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/pagerduty/package.json"],
+      "semanticCommitScope": "pagerduty"
+    },
+    {
       "description": "Todoist MCP npm package — scope 'todoist' (versions only the todoist image).",
       "matchManagers": ["npm"],
       "matchFileNames": ["mcps/todoist/package.json"],
