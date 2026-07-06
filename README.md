@@ -155,7 +155,11 @@ test fixtures and the docs table; the unit and integration suites fail without t
    e.g. `mcps/trello` maps the mis-packaged `mcp-evals` to `npm:empty-npm-package@1.0.0`.
 3. **Create `mcps/<name>/mcp.yaml`** (see the contract below). Use the package's `bin` field to find the
    **stdio** bin name for `mcpBin`, and the MCP's docs to find the env var(s) it reads for `runtime.apiKeyEnvs`.
-4. **Register the MCP in the two test fixtures** (auto-discovery covers the build matrix, not these):
+4. **Register `<name>` in Renovate and the two test fixtures** (auto-discovery covers the build matrix, not these):
+   - `renovate.json` — add a `packageRule` mapping `matchFileNames: ["mcps/<name>/package.json"]` to
+     `semanticCommitScope: "<name>"`, so an upstream npm bump commits under scope `<name>` and actually
+     releases that image. Release rules are deny-by-default: without this, bumps land under a non-release
+     scope and **publish nothing** (enforced by `test/unit/renovate-rules.test.ts`).
    - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`mcpBin`, `apiKeyEnvs`,
      and a small **stable** `expectedTools` subset), or the integration suite throws `Unknown MCP_NAME`.
    - `test/unit/ci-matrix.test.ts` — add `<name>` to the expected discovered-MCP inventory (a deliberate
