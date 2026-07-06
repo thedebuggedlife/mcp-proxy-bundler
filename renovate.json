@@ -10,6 +10,7 @@
   "separateMinorPatch": true,
   "semanticCommits": "enabled",
   "fetchChangeLogs": "pin",
+  "platformAutomerge": true,
   "packageRules": [
     {
       "description": "mcp-auth-proxy edge image — scope 'proxy' (versions every image).",
@@ -68,6 +69,11 @@
       "matchUpdateTypes": ["major"],
       "semanticCommitType": "feat",
       "commitBody": "BREAKING CHANGE: {{{depName}}} updated to {{{newVersion}}} (major)"
+    },
+    {
+      "description": "Auto-merge non-major bumps once the required CI check passes (platformAutomerge). Majors are excluded — a human reviews BREAKING CHANGE bumps that release every image.",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true
     }
   ]
 }
