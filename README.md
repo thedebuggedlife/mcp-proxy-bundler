@@ -138,8 +138,9 @@ independent blast radius, a minimal Go-binary edge surface, and per-MCP auth sco
 
 ## How to add a new MCP
 
-Onboarding is config-only — no Dockerfile, build, harness, or CI change is needed (the CI matrix
-auto-discovers `mcps/*`).
+Onboarding is almost entirely config — no Dockerfile, build-script, or CI-workflow change is needed (the
+CI matrix auto-discovers `mcps/*`). Beyond the two `mcps/<name>/` config files you register the MCP in two
+test fixtures and the docs table; the unit and integration suites fail without them.
 
 1. **Create `mcps/<name>/package.json`** pinning the MCP npm package:
    ```json
@@ -154,12 +155,18 @@ auto-discovers `mcps/*`).
    e.g. `mcps/trello` maps the mis-packaged `mcp-evals` to `npm:empty-npm-package@1.0.0`.
 3. **Create `mcps/<name>/mcp.yaml`** (see the contract below). Use the package's `bin` field to find the
    **stdio** bin name for `mcpBin`, and the MCP's docs to find the env var(s) it reads for `runtime.apiKeyEnvs`.
-4. **Build and test locally:**
+4. **Register the MCP in the two test fixtures** (auto-discovery covers the build matrix, not these):
+   - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`mcpBin`, `apiKeyEnvs`,
+     and a small **stable** `expectedTools` subset), or the integration suite throws `Unknown MCP_NAME`.
+   - `test/unit/ci-matrix.test.ts` — add `<name>` to the expected discovered-MCP inventory (a deliberate
+     tripwire; `discoverMcps()` is sorted, so keep it alphabetical).
+5. **Add a row** to the [Available MCPs](#available-mcps) table above.
+6. **Build and test locally:**
    ```sh
    ./scripts/build.sh <name>
    npm run test:integration        # MCP_NAME=<name> targets one image; defaults to hevy
    ```
-5. **Open a PR.** CI builds the image and runs the full Tier-1 + Tier-2 suite against a live Authelia.
+7. **Open a PR.** CI builds the image and runs the full Tier-1 + Tier-2 suite against a live Authelia.
    On merge to `main`, a `feat(<name>)`/`fix(<name>)`-scoped commit triggers the first publish.
 
 ### `mcp.yaml` contract
