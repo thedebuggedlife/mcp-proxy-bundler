@@ -37,6 +37,19 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
       'get-user-info',
     ],
   },
+  pagerduty: {
+    name: 'pagerduty',
+    mcpBin: 'pagerduty-mcp',
+    apiKeyEnvs: ['PAGERDUTY_API_KEY', 'PAGERDUTY_USER_EMAIL'],
+    expectedTools: [
+      'list_incidents',
+      'get_incident',
+      'list_services',
+      'list_oncalls',
+      'acknowledge_incident',
+      'resolve_incident',
+    ],
+  },
   todoist: {
     name: 'todoist',
     mcpBin: 'todoist-mcp',
