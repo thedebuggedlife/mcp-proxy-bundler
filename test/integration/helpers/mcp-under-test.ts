@@ -15,6 +15,17 @@ export interface McpUnderTest {
 const REGISTRY = 'ghcr.io/thedebuggedlife'
 
 const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
+  discord: {
+    name: 'discord',
+    mcpBin: 'discord-mcp',
+    apiKeyEnvs: ['DISCORD_TOKEN'],
+    expectedTools: [
+      'discord_send_message',
+      'discord_read_messages',
+      'discord_create_channel',
+      'discord_add_reaction',
+    ],
+  },
   hevy: {
     name: 'hevy',
     mcpBin: 'hevy-mcp',
