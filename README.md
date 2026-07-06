@@ -232,7 +232,9 @@ not re-authenticate across an update.
 **MCP-specific optional env.** A few images read extra *optional* vars beyond their `apiKeyEnvs`.
 `mcp-pagerduty` reads `PAGERDUTY_BASE_URL` (defaults to `https://api.pagerduty.com`; use
 `https://api.eu.pagerduty.com` if your PagerDuty account is in the EU service region) — set it
-explicitly to pin the host your API token is sent to.
+explicitly to pin the host your API token is sent to. Of its two `apiKeyEnvs`, only
+`PAGERDUTY_API_KEY` is required; `PAGERDUTY_USER_EMAIL` is just the author of the incident write
+tools (acknowledge/resolve/reassign/note), so a read-only deployment can leave it a placeholder.
 
 The proxy is the **sole gate**: `GET /mcp` unauthenticated returns `401` (not a portal redirect). It speaks
 OAuth 2.1 authorization-code + PKCE (S256) with Dynamic Client Registration toward downstream MCP clients.
