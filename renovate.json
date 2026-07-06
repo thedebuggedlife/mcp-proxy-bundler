@@ -24,16 +24,34 @@
       "semanticCommitScope": "node"
     },
     {
+      "description": "Discord MCP npm package — scope 'discord' (versions only the discord image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/discord/package.json"],
+      "semanticCommitScope": "discord"
+    },
+    {
       "description": "Hevy MCP npm package — scope 'hevy' (versions only the hevy image).",
       "matchManagers": ["npm"],
       "matchFileNames": ["mcps/hevy/package.json"],
       "semanticCommitScope": "hevy"
     },
     {
+      "description": "PagerDuty MCP npm package — scope 'pagerduty' (versions only the pagerduty image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/pagerduty/package.json"],
+      "semanticCommitScope": "pagerduty"
+    },
+    {
       "description": "Todoist MCP npm package — scope 'todoist' (versions only the todoist image).",
       "matchManagers": ["npm"],
       "matchFileNames": ["mcps/todoist/package.json"],
       "semanticCommitScope": "todoist"
+    },
+    {
+      "description": "Trello MCP npm package — scope 'trello' (versions only the trello image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/trello/package.json"],
+      "semanticCommitScope": "trello"
     },
     {
       "description": "minor → feat → composite minor bump (Appendix B.2).",

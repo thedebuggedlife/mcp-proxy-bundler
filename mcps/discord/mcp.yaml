@@ -1,0 +1,7 @@
+name: discord
+displayName: "Discord MCP"
+mcpPackage: "@pasympa/discord-mcp"
+mcpBin: discord-mcp
+runtime:
+  apiKeyEnvs:
+    - DISCORD_TOKEN

@@ -23,7 +23,9 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 
 | MCP | Image | Upstream package | Source |
 |---|---|---|---|
+| Discord | `ghcr.io/thedebuggedlife/mcp-discord` | [`@pasympa/discord-mcp`](https://www.npmjs.com/package/@pasympa/discord-mcp) | [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) |
 | Hevy | `ghcr.io/thedebuggedlife/mcp-hevy` | [`hevy-mcp`](https://www.npmjs.com/package/hevy-mcp) | [chrisdoc/hevy-mcp](https://github.com/chrisdoc/hevy-mcp) |
+| PagerDuty | `ghcr.io/thedebuggedlife/mcp-pagerduty` | [`@vineethnkrishnan/pagerduty-mcp`](https://www.npmjs.com/package/@vineethnkrishnan/pagerduty-mcp) | [vineethkrishnan/mcp-pool](https://github.com/vineethkrishnan/mcp-pool/tree/main/packages/pagerduty) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
 | Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
 
@@ -137,8 +139,9 @@ independent blast radius, a minimal Go-binary edge surface, and per-MCP auth sco
 
 ## How to add a new MCP
 
-Onboarding is config-only — no Dockerfile, build, harness, or CI change is needed (the CI matrix
-auto-discovers `mcps/*`).
+Onboarding is almost entirely config — no Dockerfile, build-script, or CI-workflow change is needed (the
+CI matrix auto-discovers `mcps/*`). Beyond the two `mcps/<name>/` config files you register the MCP in two
+test fixtures and the docs table; the unit and integration suites fail without them.
 
 1. **Create `mcps/<name>/package.json`** pinning the MCP npm package:
    ```json
@@ -153,12 +156,22 @@ auto-discovers `mcps/*`).
    e.g. `mcps/trello` maps the mis-packaged `mcp-evals` to `npm:empty-npm-package@1.0.0`.
 3. **Create `mcps/<name>/mcp.yaml`** (see the contract below). Use the package's `bin` field to find the
    **stdio** bin name for `mcpBin`, and the MCP's docs to find the env var(s) it reads for `runtime.apiKeyEnvs`.
-4. **Build and test locally:**
+4. **Register `<name>` in Renovate and the two test fixtures** (auto-discovery covers the build matrix, not these):
+   - `renovate.json` — add a `packageRule` mapping `matchFileNames: ["mcps/<name>/package.json"]` to
+     `semanticCommitScope: "<name>"`, so an upstream npm bump commits under scope `<name>` and actually
+     releases that image. Release rules are deny-by-default: without this, bumps land under a non-release
+     scope and **publish nothing** (enforced by `test/unit/renovate-rules.test.ts`).
+   - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`mcpBin`, `apiKeyEnvs`,
+     and a small **stable** `expectedTools` subset), or the integration suite throws `Unknown MCP_NAME`.
+   - `test/unit/ci-matrix.test.ts` — add `<name>` to the expected discovered-MCP inventory (a deliberate
+     tripwire; `discoverMcps()` is sorted, so keep it alphabetical).
+5. **Add a row** to the [Available MCPs](#available-mcps) table above.
+6. **Build and test locally:**
    ```sh
    ./scripts/build.sh <name>
    npm run test:integration        # MCP_NAME=<name> targets one image; defaults to hevy
    ```
-5. **Open a PR.** CI builds the image and runs the full Tier-1 + Tier-2 suite against a live Authelia.
+7. **Open a PR.** CI builds the image and runs the full Tier-1 + Tier-2 suite against a live Authelia.
    On merge to `main`, a `feat(<name>)`/`fix(<name>)`-scoped commit triggers the first publish.
 
 ### `mcp.yaml` contract
@@ -215,6 +228,13 @@ env-var names are the verified `mcp-auth-proxy` contract (design Appendix A):
 **Token continuity:** mount `DATA_PATH=/data` to a per-instance persistent host directory. The proxy keeps
 its signing key and registered-client/token database there, so image swaps are token-safe — clients do
 not re-authenticate across an update.
+
+**MCP-specific optional env.** A few images read extra *optional* vars beyond their `apiKeyEnvs`.
+`mcp-pagerduty` reads `PAGERDUTY_BASE_URL` (defaults to `https://api.pagerduty.com`; use
+`https://api.eu.pagerduty.com` if your PagerDuty account is in the EU service region) — set it
+explicitly to pin the host your API token is sent to. Of its two `apiKeyEnvs`, only
+`PAGERDUTY_API_KEY` is required; `PAGERDUTY_USER_EMAIL` is just the author of the incident write
+tools (acknowledge/resolve/reassign/note), so a read-only deployment can leave it a placeholder.
 
 The proxy is the **sole gate**: `GET /mcp` unauthenticated returns `401` (not a portal redirect). It speaks
 OAuth 2.1 authorization-code + PKCE (S256) with Dynamic Client Registration toward downstream MCP clients.
