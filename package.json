@@ -18,7 +18,7 @@
     "@types/node": "^24.0.0",
     "semantic-release": "^25.0.0",
     "tough-cookie": "^6.0.0",
-    "typescript": "^6.0.0",
+    "typescript": "^7.0.0",
     "undici": "^8.0.0",
     "vitest": "^4.0.0",
     "yaml": "^2.8.0",
