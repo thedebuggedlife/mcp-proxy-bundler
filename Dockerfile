@@ -2,7 +2,7 @@
 FROM ghcr.io/sigbit/mcp-auth-proxy:2.10.2@sha256:f92e0ccd22b2a7585bccedc366a3c872bbfa3500c7fa5e7443b40962bf248e8d AS proxy
 
 # Stage 2: shared Node base (Renovate docker manager updates this tag). node:26 satisfies all current MCPs.
-FROM node:26.5.0-slim@sha256:384e94c8c33ce0daae4ecbd00fa604ebabaa18f26fc508132f8da45035bf0219
+FROM node:26.5.0-slim@sha256:715e55e4b84e4bb0ff48e49b398a848f08e55daed8eb6a0ea1839ae53bc57583
 ARG MCP_DIR
 ARG MCP_BIN
 
