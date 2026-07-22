@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@delorenj/mcp-server-trello": "1.7.1"
+    "@delorenj/mcp-server-trello": "1.8.0"
   },
   "overrides": {
     "mcp-evals": "npm:empty-npm-package@1.0.0"
