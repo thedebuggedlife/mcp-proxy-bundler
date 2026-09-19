@@ -2,8 +2,8 @@
 
 Config-driven builder that publishes one hardened OCI image per MCP — `mcp-auth-proxy`
 (the OAuth edge) bundled with a baked stdio MCP server — from declarative `mcps/<name>/`
-config. See `README.md` for usage and `ralph/projects/mcp-proxy-bundler/design.md` for the
-architecture (local-only, not committed).
+config. See `README.md` for usage and `docs/ralph/specs/2026-06-22-mcp-proxy-bundler.md` for
+the architecture.
 
 ## Releases & commit conventions
 
