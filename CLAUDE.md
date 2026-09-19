@@ -72,5 +72,5 @@ These are declared preferences; they override the superpowers skills' defaults.
   title must be the conventional squash subject (see *Releases*), since that alone decides what
   releases. Commits on the branch use non-release types (`test:`, `refactor:`, `docs:`, `chore:`…).
   Archiving the worktree is done through Paseo, and deletes the branch — push first.
-- **Specs and plans** go in `docs/ralph/specs/YYYY-MM-DD-<feature>.md` and
-  `docs/ralph/plans/YYYY-MM-DD-<feature>.md`, committed as `docs:` on the feature branch.
+- **Specs** go in `docs/specs/YYYY-MM-DD-<feature>.md`, committed as `docs:` on the feature branch.
+- **Plans** and other agent workflow artifacts **never** get committed into the tree.
