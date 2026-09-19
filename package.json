@@ -5,6 +5,7 @@
   "description": "Config-driven monorepo producing hardened, auto-updated per-MCP OCI images bundling mcp-auth-proxy with a baked stdio MCP server.",
   "type": "module",
   "scripts": {
+    "test": "npm run test:unit",
     "test:unit": "vitest run test/unit",
     "test:integration": "bash scripts/test-integration.sh",
     "build": "bash scripts/build.sh"

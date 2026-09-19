@@ -1,0 +1,8 @@
+{
+  "worktree": {
+    "setup": "npm ci"
+  },
+  "scripts": {
+    "test:unit": { "command": "npm run test:unit" }
+  }
+}
