@@ -21,8 +21,9 @@ the subject defaults to the PR title (multi-commit PR) or the single commit's su
 
 | Scope | Releases | Who writes it |
 |-------|----------|---------------|
-| `<mcp>` (e.g. `hevy`, `todoist`) | that one image | Renovate (MCP npm bump) |
-| `proxy`, `node` | **every** image (shared base) | Renovate (Dockerfile `FROM` bump) |
+| `<mcp>` (e.g. `hevy`, `todoist`) | that one image | Renovate (MCP npm bump, or the `upstream.Dockerfile` pin for `dotnet` MCPs) |
+| `proxy`, `node` | **every** image (shared base; every image carries Node for the schema shim) | Renovate (Dockerfile `FROM` bump) |
+| `dotnet` | every **`type: dotnet`** image (shared ASP.NET base) | Renovate (Dockerfile `FROM` bump) |
 | `image` | **every** image | **us**, for changes to the built image's runtime (Dockerfile non-`FROM`, `entrypoint.sh`, the schema shim, baked scripts) |
 
 ### Types
@@ -46,7 +47,9 @@ Use these for repo plumbing (CI, tests, docs, the release config itself).
 - `npm run test:unit` — unit tests (Vitest)
 - `./scripts/build.sh <mcp>` — build one image locally
 - `MCP_NAME=<mcp> npm run test:integration` — full real-Authelia integration suite for one image
-- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}`, then register `<name>` in
+- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}`. For a `type: dotnet` MCP
+  the files are `mcps/<name>/{mcp.yaml,upstream.Dockerfile}` and the Renovate `packageRule` matches the
+  `dockerfile` manager on `mcps/<name>/upstream.Dockerfile`. Then register `<name>` in
   `renovate.json` (a `packageRule` scoping `mcps/<name>/package.json` bumps to `semanticCommitScope`
   `<name>`, else upstream bumps never release — guarded by `test/unit/renovate-rules.test.ts`),
   `test/integration/helpers/mcp-under-test.ts` (harness registry — apiKeyEnvs, stable `expectedTools`)
