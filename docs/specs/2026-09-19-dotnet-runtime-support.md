@@ -234,10 +234,10 @@ Commits on the branches use non-release types; the PR titles above are the squas
 
 | # | Risk | How it is retired |
 |---|---|---|
-| 0 | The server misbehaves against the consumer's Immich version | **Recommended before any build work:** the consumer runs upstream's own image as a local stdio MCP (`docker run -i --rm -e IMMICH_BASE_URL=… -e IMMICH_API_KEY=… -e DOWNLOAD_MODE=base64 ghcr.io/barryw/immichmcp:v3.3.3 --stdio`) and exercises search + preview |
+| 0 | The server misbehaves against the consumer's Immich version | **Retired 2026-09-20.** The consumer ran upstream's `v3.3.3` image as a stdio MCP inside Immich's Docker network (Immich `v3.2.2`, `DOWNLOAD_MODE=base64`) from Claude Code: search and people tools worked, and the model could see images delivered as `image` content blocks |
 | 1 | App fails to start as uid 1000 with no passwd entry / writable `HOME`, or its `tools/list` does not survive the shim | First `:dev` build + the `tools/list` integration test. On failure: stop and report, do not work around |
 | 2 | `mcp-auth-proxy` mishandles multi-megabyte `image` results (25 MiB default cap, +33% base64) | Manual check against the consumer's Immich through the local `:dev` image. Mitigation: lower `MAX_INLINE_DOWNLOAD_BYTES`; report upstream |
-| 3 | In Claude Cowork, image content blocks reach the model but may not reach the agent's disk | Verifiable only post-deploy from a real Cowork session. Fallback already in this MCP: `immich_shared_links_create` with `allowDownload`, then `curl` — which requires Immich to be reachable from the Cowork sandbox and so constrains `IMMICH_BASE_URL` |
+| 3 | Image content blocks reach the model but not the agent's disk | **Observed 2026-09-20 in Claude Code** (Cowork still unverified): the agent could see an image but could not write it to a file. The URL fallback is **not viable for this consumer** — Immich sits behind mTLS, so neither asset URLs nor shared links are fetchable from an agent sandbox, least of all Cowork on the web. **Accepted:** ship with model-visible images only; on-disk delivery is a recorded follow-up (see Out of Scope) |
 | 4 | Upstream has **no LICENSE file** (README and the csproj's `PackageLicenseExpression` both say MIT), and we redistribute its binaries in a public image | Ask upstream to add the file. Does not block building; see Open Questions |
 | 5 | Our runtime patch level runs ahead of what upstream tested | Expected .NET servicing behaviour; the integration matrix runs on every `dotnet` bump |
 
@@ -267,6 +267,7 @@ Commits on the branches use non-release types; the PR titles above are the squas
 - **Chiseled ASP.NET base** (`aspnet:10.0-noble-chiseled`): no shell, no package manager, much smaller CVE surface. Needs a shell-free launcher (the shim could absorb that role) and a non-apt source for `libatomic`.
 - **Dropping Node from `dotnet` images** once `mcp-auth-proxy#178` is fixed and the shim is deleted — then also remove `'node'` from the `dotnet` row of `SHARED_SCOPES`.
 - **A Python runtime type.** Eight of the eleven Immich servers found were Python; the seam (`type` union member + Dockerfile target + metadata row) is shaped for it.
+- **Getting media bytes onto the agent's disk through MCP itself** (risk 3), with no URL the sandbox must fetch. First establish what the MCP clients in play (Claude Code, Cowork) let an agent persist from a tool result; if a workable shape exists, contribute it to `barryw/ImmichMCP` rather than carrying a fork.
 - **An automated large-payload relay test** for the proxy that needs no MCP backend.
 
 ---
