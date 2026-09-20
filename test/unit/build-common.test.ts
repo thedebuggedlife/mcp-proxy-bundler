@@ -10,6 +10,10 @@ const hevyPkg = JSON.parse(
   readFileSync(join(repoRoot, 'mcps', 'hevy', 'package.json'), 'utf8'),
 ) as { dependencies: Record<string, string> }
 
+function valuesAfter(args: string[], flag: string): string[] {
+  return args.flatMap((arg, i) => (arg === flag ? [args[i + 1]] : []))
+}
+
 function buildArgsFor(mcpName: string): string[] {
   const out = execFileSync(
     'bash',
@@ -35,26 +39,20 @@ describe('build-common.sh load_build_context', () => {
   const nodeVersion = /^FROM node:([^@\s]+?)-slim/m.exec(dockerfile)![1]
 
   it('selects the node target and passes the launch command', () => {
-    expect(args).toEqual(
-      expect.arrayContaining([
-        '--target',
-        'node',
-        'MCP_DIR=mcps/hevy',
-        'MCP_LAUNCH=/app/node_modules/.bin/hevy-mcp',
-      ]),
-    )
     expect(args[args.indexOf('--target') + 1]).toBe('node')
+    expect(valuesAfter(args, '--build-arg')).toEqual([
+      'MCP_DIR=mcps/hevy',
+      'MCP_LAUNCH=/app/node_modules/.bin/hevy-mcp',
+    ])
   })
 
   it('stamps the four OCI labels from the Dockerfile and package.json', () => {
-    expect(args).toEqual(
-      expect.arrayContaining([
-        `io.thedebuggedlife.mcp.proxy-version=${proxyVersion}`,
-        'io.thedebuggedlife.mcp.package=hevy-mcp',
-        `io.thedebuggedlife.mcp.package-version=${hevyPkg.dependencies['hevy-mcp']}`,
-        `io.thedebuggedlife.mcp.node-version=${nodeVersion}`,
-      ]),
-    )
+    expect(valuesAfter(args, '--label')).toEqual([
+      `io.thedebuggedlife.mcp.proxy-version=${proxyVersion}`,
+      'io.thedebuggedlife.mcp.package=hevy-mcp',
+      `io.thedebuggedlife.mcp.package-version=${hevyPkg.dependencies['hevy-mcp']}`,
+      `io.thedebuggedlife.mcp.node-version=${nodeVersion}`,
+    ])
   })
 
   it('fails for an MCP that does not exist', () => {

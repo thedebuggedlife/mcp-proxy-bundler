@@ -162,8 +162,8 @@ test fixtures and the docs table; the unit and integration suites fail without t
      `semanticCommitScope: "<name>"`, so an upstream npm bump commits under scope `<name>` and actually
      releases that image. Release rules are deny-by-default: without this, bumps land under a non-release
      scope and **publish nothing** (enforced by `test/unit/renovate-rules.test.ts`).
-   - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`apiKeyEnvs`,
-     and a small **stable** `expectedTools` subset), or the integration suite throws `Unknown MCP_NAME`.
+   - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`apiKeyEnvs` and a
+     small **stable** `expectedTools` subset), or the integration suite throws `Unknown MCP_NAME`.
    - `test/unit/ci-matrix.test.ts` — add `<name>` to the expected discovered-MCP inventory (a deliberate
      tripwire; `discoverMcps()` is sorted, so keep it alphabetical).
 5. **Add a row** to the [Available MCPs](#available-mcps) table above.
@@ -243,7 +243,7 @@ OAuth 2.1 authorization-code + PKCE (S256) with Dynamic Client Registration towa
 
 ## OCI labels
 
-Every image is stamped at build with these labels (source: `scripts/build.sh`), so a consumer can record
+Every image is stamped at build with these labels (source: `scripts/lib/build-common.sh`), so a consumer can record
 exactly what changed:
 
 | Label | Source |

@@ -1,5 +1,6 @@
 # Sourced by build.sh and release-image.sh with MCP_NAME set. load_build_context sets REPO_ROOT,
 # DOCKERFILE, PROXY_VERSION, NODE_VERSION, BUILD_SUMMARY and the BUILD_ARGS array.
+# On error load_build_context returns 1, so callers must run under `set -e` for that to be fatal.
 
 BUILD_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
