@@ -6,6 +6,7 @@ describe('hevy mcp config', () => {
     const config = loadMcpConfig('hevy')
     expect(config).toEqual({
       name: 'hevy',
+      type: 'node',
       mcpPackage: 'hevy-mcp',
       mcpBin: 'hevy-mcp',
       displayName: 'Hevy MCP',

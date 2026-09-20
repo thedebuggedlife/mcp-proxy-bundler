@@ -6,6 +6,7 @@ describe('todoist mcp config', () => {
     const config = loadMcpConfig('todoist')
     expect(config).toEqual({
       name: 'todoist',
+      type: 'node',
       mcpPackage: '@doist/todoist-mcp',
       mcpBin: 'todoist-mcp',
       displayName: 'Todoist MCP',
