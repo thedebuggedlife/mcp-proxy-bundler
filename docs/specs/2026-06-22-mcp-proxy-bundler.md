@@ -90,9 +90,8 @@ mcp-proxy-bundler/
 ├── renovate.json                  # native docker + npm managers; severity mapping (D5/D6)
 ├── release.config.js              # semantic-release config
 ├── README.md
-├── docs/ralph/specs/              # design specs (committed)
-│   └── 2026-06-22-mcp-proxy-bundler.md   ← this file
-└── ralph/                         # LOCAL-ONLY (.git/info/exclude) — planning scratch, never committed
+└── docs/specs/                    # design specs (committed)
+    └── 2026-06-22-mcp-proxy-bundler.md   ← this file
 ```
 
 **Why this shape:** it keeps Renovate on **native managers** (no brittle custom regex). The MCP package version lives in `mcps/<name>/package.json` (npm manager); the proxy + node versions live as `FROM` lines in the shared `Dockerfile` (docker manager).
