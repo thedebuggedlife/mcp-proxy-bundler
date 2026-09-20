@@ -1,5 +1,5 @@
 name: dotnet-missing-repo
-displayName: "Dotnet Valid"
+displayName: "Dotnet Missing Repo"
 type: dotnet
 mcpImage: ghcr.io/example/valid-mcp
 mcpAssembly: ValidMcp.dll

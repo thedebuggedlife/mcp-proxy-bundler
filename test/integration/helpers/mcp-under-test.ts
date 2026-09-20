@@ -2,6 +2,8 @@
 // integration wrapper / CI matrix sets). Keeps the test bodies MCP-agnostic so
 // the matrix proves every image with one spec (Phase 15: config-only onboarding).
 
+import { TEST_DUMMY_ENV } from '../../../scripts/lib/test-dummy-env.ts'
+
 export interface McpUnderTest {
   name: string
   image: string
@@ -39,7 +41,7 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
   immich: {
     name: 'immich',
     apiKeyEnvs: ['IMMICH_BASE_URL', 'IMMICH_API_KEY'],
-    dummyEnv: { IMMICH_BASE_URL: 'http://immich.invalid' },
+    dummyEnv: TEST_DUMMY_ENV.immich,
     expectedTools: [
       'immich_search_smart',
       'immich_search_metadata',

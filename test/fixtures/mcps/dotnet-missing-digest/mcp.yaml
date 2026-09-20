@@ -1,5 +1,5 @@
 name: dotnet-missing-digest
-displayName: "Dotnet Valid"
+displayName: "Dotnet Missing Digest"
 type: dotnet
 mcpImage: ghcr.io/example/valid-mcp
 mcpRepo: example/valid-mcp

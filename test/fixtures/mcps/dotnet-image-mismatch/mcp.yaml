@@ -1,5 +1,5 @@
 name: dotnet-image-mismatch
-displayName: "Dotnet Valid"
+displayName: "Dotnet Image Mismatch"
 type: dotnet
 mcpImage: ghcr.io/example/valid-mcp
 mcpRepo: example/valid-mcp

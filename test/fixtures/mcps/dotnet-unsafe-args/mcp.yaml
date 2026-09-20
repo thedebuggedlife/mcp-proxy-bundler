@@ -1,5 +1,5 @@
 name: dotnet-unsafe-args
-displayName: "Dotnet Valid"
+displayName: "Dotnet Unsafe Args"
 type: dotnet
 mcpImage: ghcr.io/example/valid-mcp
 mcpRepo: example/valid-mcp
