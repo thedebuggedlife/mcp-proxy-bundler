@@ -99,11 +99,12 @@ mcp-proxy-bundler/
 │       ├── package.json
 │       ├── package-lock.json
 │       └── mcp.yaml
-├── Dockerfile                     # SHARED, parameterized by build args (MCP_DIR, MCP_BIN)
+├── Dockerfile                     # SHARED, multi-target (--target node); build args MCP_DIR, MCP_LAUNCH
 │                                  #   holds `FROM mcp-auth-proxy:<ver>` + `FROM node:<ver>` ← Renovate docker-managed
-├── entrypoint.sh                  # shim: exec mcp-auth-proxy -- /app/node_modules/.bin/$MCP_BIN
+├── entrypoint.sh                  # runtime-neutral: exec mcp-auth-proxy -- … /app/mcp-launch
 ├── scripts/
 │   ├── build.sh                   # build one image from mcps/<name>/ + stamp OCI labels
+│   ├── lib/build-common.sh        # FROM-version parse + docker build args/labels (shared by build.sh and release-image.sh)
 │   ├── test-integration.sh        # bring up the Authelia CI stack and run the integration suite
 │   └── lib/mcp-config.ts          # mcp.yaml schema + loader (single source of truth)
 ├── test/
@@ -161,7 +162,7 @@ test fixtures and the docs table; the unit and integration suites fail without t
      `semanticCommitScope: "<name>"`, so an upstream npm bump commits under scope `<name>` and actually
      releases that image. Release rules are deny-by-default: without this, bumps land under a non-release
      scope and **publish nothing** (enforced by `test/unit/renovate-rules.test.ts`).
-   - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`mcpBin`, `apiKeyEnvs`,
+   - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`apiKeyEnvs`,
      and a small **stable** `expectedTools` subset), or the integration suite throws `Unknown MCP_NAME`.
    - `test/unit/ci-matrix.test.ts` — add `<name>` to the expected discovered-MCP inventory (a deliberate
      tripwire; `discoverMcps()` is sorted, so keep it alphabetical).
@@ -182,8 +183,9 @@ secrets, or UI fields). The schema is validated by `scripts/lib/mcp-config.ts`.
 | Field | Required | Purpose |
 |---|---|---|
 | `name` | yes | Image name → `ghcr.io/thedebuggedlife/mcp-<name>` |
+| `type` | no | MCP runtime. Only `node` today (the default) |
 | `mcpPackage` | yes | npm package name; **must match the `package.json` dependency key** (cross-checked by the loader) |
-| `mcpBin` | yes | The stdio bin to spawn (`node_modules/.bin/<mcpBin>`) |
+| `mcpBin` | yes | The stdio bin to spawn (`node_modules/.bin/<mcpBin>`), baked into `/app/mcp-launch`. Letters, digits and `. _ = : / @ -` only |
 | `displayName` | no | Human label (defaults to `name`) |
 | `nodeVersion` | no | Per-MCP Node base override. **Schema-accepted but not yet wired into the build** — `build.sh` errors clearly if it differs from the shared base, rather than silently ignoring it. |
 | `runtime.apiKeyEnvs` | no | List of env vars the MCP reads at runtime (one or more credentials) — supplied by the consumer, **not baked** |
