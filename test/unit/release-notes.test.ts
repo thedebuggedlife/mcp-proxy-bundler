@@ -4,7 +4,10 @@ import {
   type AggregateInput,
   type FetchLike,
 } from '../../scripts/aggregate-release-notes.ts'
-import { deriveChange } from '../../scripts/release-notes-from-commits.ts'
+import {
+  deriveChange,
+  releaseLogArgs,
+} from '../../scripts/release-notes-from-commits.ts'
 
 interface MockResponse {
   ok?: boolean
@@ -347,5 +350,27 @@ describe('deriveChange', () => {
     expect(
       deriveChange(['feat(immich): update ghcr.io/barryw/immichmcp docker tag to v3.4.0'], 'immich', 'dotnet'),
     ).toEqual({ kind: 'mcp', oldVersion: undefined, newVersion: '3.4.0' })
+  })
+})
+
+describe('releaseLogArgs', () => {
+  it('builds git log args for a tag range', () => {
+    expect(releaseLogArgs('mcp-hevy-v1.8.0..abc123')).toEqual([
+      'log',
+      '--format=%s',
+      'mcp-hevy-v1.8.0..abc123',
+    ])
+  })
+
+  it('returns undefined for a first-release range (leading "..")', () => {
+    expect(releaseLogArgs('..abc123')).toBeUndefined()
+  })
+
+  it('returns undefined when the range is undefined', () => {
+    expect(releaseLogArgs(undefined)).toBeUndefined()
+  })
+
+  it('returns undefined when the range is empty', () => {
+    expect(releaseLogArgs('')).toBeUndefined()
   })
 })

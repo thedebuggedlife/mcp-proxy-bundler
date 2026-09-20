@@ -80,16 +80,16 @@ function readDockerfileTags(): { proxy: string; node: string; dotnet?: string } 
   return { proxy, node, dotnet }
 }
 
+// No usable range means a first release: nothing changed upstream, so unrelated history is not mined.
+export function releaseLogArgs(range: string | undefined): string[] | undefined {
+  return range && !range.startsWith('..')
+    ? ['log', '--format=%s', range]
+    : undefined
+}
+
 function commitsInRelease(): string[] {
-  // semantic-release sets these env vars for exec commands; fall back to the
-  // last tag for this image if not present.
-  const range = process.env.GIT_RANGE
-  // A leading ".." (no last tag, i.e. first release) is not a valid range; fall
-  // back to a bounded recent-commit scan.
-  const usableRange = range && !range.startsWith('..') ? range : undefined
-  const args = usableRange
-    ? ['log', '--format=%s', usableRange]
-    : ['log', '--format=%s', '-n', '50']
+  const args = releaseLogArgs(process.env.GIT_RANGE)
+  if (!args) return []
   try {
     const out = execFileSync('git', args, {
       cwd: repoRoot,
