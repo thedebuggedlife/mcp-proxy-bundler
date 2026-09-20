@@ -18,7 +18,22 @@ describe('buildMeta', () => {
       target: 'node',
       upstream: 'valid-mcp',
       upstreamVersion: '1.0.0',
+      mcpImageRef: '',
       launch: '/app/node_modules/.bin/valid-mcp',
+      nodeVersion: '',
+    })
+  })
+
+  it('derives runtime-neutral metadata for a dotnet MCP', () => {
+    expect(buildMeta('dotnet-valid', fixturesDir)).toEqual({
+      name: 'dotnet-valid',
+      type: 'dotnet',
+      target: 'dotnet',
+      upstream: 'ghcr.io/example/valid-mcp',
+      upstreamVersion: '1.2.3',
+      mcpImageRef:
+        'ghcr.io/example/valid-mcp:v1.2.3@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      launch: 'dotnet /app/mcp/ValidMcp.dll --stdio',
       nodeVersion: '',
     })
   })
