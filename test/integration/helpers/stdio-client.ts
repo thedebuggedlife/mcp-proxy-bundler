@@ -3,7 +3,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 export interface BakedMcpOptions {
   image: string
-  mcpBin: string
   apiKeyEnvs: string[]
   apiKeyValue?: string
 }
@@ -14,14 +13,13 @@ export interface BakedMcpClient {
 }
 
 /**
- * Drives the baked MCP bin directly over stdio (proxy bypassed): `docker run -i --rm`
- * with the bin as the entrypoint, wired to the SDK's StdioClientTransport.
+ * Drives the baked MCP directly over stdio (proxy bypassed): `docker run -i --rm`
+ * with the image's launcher as the entrypoint, wired to the SDK's StdioClientTransport.
  */
 export async function connectBakedMcp(
   opts: BakedMcpOptions,
 ): Promise<BakedMcpClient> {
   const apiKeyValue = opts.apiKeyValue ?? 'dummy'
-  const binPath = `/app/node_modules/.bin/${opts.mcpBin}`
 
   const envArgs = opts.apiKeyEnvs.flatMap((env) => [
     '-e',
@@ -34,7 +32,7 @@ export async function connectBakedMcp(
     '--rm',
     ...envArgs,
     '--entrypoint',
-    binPath,
+    '/app/mcp-launch',
     opts.image,
   ]
 
@@ -59,7 +57,7 @@ export async function connectBakedMcp(
   } catch (err) {
     const stderr = stderrChunks.join('')
     throw new Error(
-      `Failed to connect to baked MCP (${opts.image}, bin=${opts.mcpBin}): ${
+      `Failed to connect to baked MCP (${opts.image}): ${
         err instanceof Error ? err.message : String(err)
       }${stderr ? `\n--- child stderr ---\n${stderr}` : ''}`,
     )

@@ -9,7 +9,6 @@ let conn: BakedMcpClient
 beforeAll(async () => {
   conn = await connectBakedMcp({
     image: mcp.image,
-    mcpBin: mcp.mcpBin,
     apiKeyEnvs: mcp.apiKeyEnvs,
   })
 })
