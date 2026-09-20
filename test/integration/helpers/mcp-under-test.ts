@@ -9,6 +9,8 @@ export interface McpUnderTest {
   // A resilient subset of stable tool names (asserted as a contained-subset, not
   // exact equality, so upstream tool additions don't break the test).
   expectedTools: string[]
+  // Per-env dummy values for MCPs that validate a credential's shape (e.g. a URL).
+  dummyEnv?: Record<string, string>
 }
 
 const REGISTRY = 'ghcr.io/thedebuggedlife'
@@ -32,6 +34,17 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
       'get-routines',
       'get-exercise-templates',
       'get-user-info',
+    ],
+  },
+  immich: {
+    name: 'immich',
+    apiKeyEnvs: ['IMMICH_BASE_URL', 'IMMICH_API_KEY'],
+    dummyEnv: { IMMICH_BASE_URL: 'http://immich.invalid' },
+    expectedTools: [
+      'immich_search_smart',
+      'immich_search_metadata',
+      'immich_people_assets',
+      'immich_assets_download_thumbnail',
     ],
   },
   pagerduty: {
