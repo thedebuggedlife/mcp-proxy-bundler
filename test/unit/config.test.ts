@@ -11,6 +11,7 @@ describe('loadMcpConfig', () => {
     const config = loadMcpConfig('valid', fixturesDir)
     expect(config).toEqual({
       name: 'valid',
+      type: 'node',
       mcpPackage: 'valid-mcp',
       mcpBin: 'valid-mcp',
       displayName: 'Valid MCP',
@@ -47,6 +48,18 @@ describe('loadMcpConfig', () => {
   it('throws a clear error when mcp.yaml does not exist', () => {
     expect(() => loadMcpConfig('does-not-exist', fixturesDir)).toThrowError(
       /Cannot read mcp\.yaml for "does-not-exist"/,
+    )
+  })
+
+  it('rejects an mcpBin that is not safe to interpolate into the launcher', () => {
+    expect(() => loadMcpConfig('unsafe-bin', fixturesDir)).toThrowError(
+      /Invalid mcp\.yaml for "unsafe-bin"[\s\S]*mcpBin/,
+    )
+  })
+
+  it('rejects an unknown type', () => {
+    expect(() => loadMcpConfig('unknown-type', fixturesDir)).toThrowError(
+      /Invalid mcp\.yaml for "unknown-type"[\s\S]*type/,
     )
   })
 })

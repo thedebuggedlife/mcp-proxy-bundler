@@ -1,0 +1,3 @@
+name: unsafe-bin
+mcpPackage: unsafe-bin
+mcpBin: "evil;rm"

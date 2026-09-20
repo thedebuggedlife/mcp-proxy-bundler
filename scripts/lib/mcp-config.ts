@@ -7,11 +7,16 @@ import { z } from 'zod'
 const hostnameRegex =
   /^(?=.{1,253}$)(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.(?!-)[a-zA-Z0-9-]{1,63}(?<!-))*$/
 
+export const LAUNCH_SAFE = /^[A-Za-z0-9._=:/@-]+$/
+
 export const McpConfigSchema = z
   .object({
     name: z.string().min(1),
+    type: z.enum(['node']).default('node'),
     mcpPackage: z.string().min(1),
-    mcpBin: z.string().min(1),
+    mcpBin: z
+      .string()
+      .regex(LAUNCH_SAFE, 'may only contain A-Z a-z 0-9 . _ = : / @ -'),
     displayName: z.string().min(1).optional(),
     nodeVersion: z.string().min(1).optional(),
     runtime: z
@@ -30,6 +35,7 @@ export type McpConfig = z.infer<typeof McpConfigSchema>
 
 export interface NormalizedMcpConfig {
   name: string
+  type: 'node'
   mcpPackage: string
   mcpBin: string
   displayName: string
@@ -108,6 +114,7 @@ export function loadMcpConfig(
 
   return {
     name: config.name,
+    type: config.type,
     mcpPackage: config.mcpPackage,
     mcpBin: config.mcpBin,
     displayName: config.displayName ?? config.name,
