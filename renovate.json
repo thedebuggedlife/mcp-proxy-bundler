@@ -68,7 +68,7 @@
       "semanticCommitScope": "trello"
     },
     {
-      "description": "Immich MCP upstream image pin — scope 'immich' (versions only the immich image).",
+      "description": "Immich MCP upstream image pin — scope 'immich' (versions only the immich image). Per-MCP rules must stay after the shared-scope rules so their scope wins the merge.",
       "matchManagers": ["dockerfile"],
       "matchFileNames": ["mcps/immich/upstream.Dockerfile"],
       "semanticCommitScope": "immich"

@@ -14,7 +14,8 @@ An MCP deployed as a one-off custom image (proxy binary on a Node base, spawning
 falls out of any registry-based auto-update pipeline — the single most critical place to leave a
 vulnerability window, since the proxy is the internet-facing gate. This builder generalizes that build:
 
-- The edge proxy and Node base are **digest-pinned** and **auto-bumped** by Renovate.
+- The edge proxy, Node base, and (for `type: dotnet` images) ASP.NET base are **digest-pinned** and
+  **auto-bumped** by Renovate.
 - Every bump is gated by a real CI test suite (build + OAuth e2e against a live Authelia) before publish.
 - Each image carries **honest semver** and OCI labels recording exactly what changed.
 - Adding an MCP is two or three small config files — no Dockerfile or CI changes.
@@ -129,15 +130,17 @@ mcp-proxy-bundler/
 └── release.config.js              # semantic-release config (scope-routed, per-image)
 ```
 
-The shape keeps Renovate on **native managers** (no custom regex): the MCP package version lives in
-`mcps/<name>/package.json` (npm manager), while the proxy and Node versions live as `FROM` lines in the
-shared `Dockerfile` (docker manager).
+The shape keeps Renovate on **native managers** (no custom regex): a `node` MCP's package version lives in
+`mcps/<name>/package.json` (npm manager), a `dotnet` MCP's pin lives in `mcps/<name>/upstream.Dockerfile`
+(docker manager), and the proxy, Node, and ASP.NET versions live as `FROM` lines in the shared `Dockerfile`
+(docker manager).
 
 ## Architecture
 
 One proxy : one MCP, baked into one image. The clean path bakes `mcp-auth-proxy -- <stdio bin>`: the
-proxy spawns and supervises the stdio child as a single foreground process. The MCP package is installed
-at **build time** (`npm ci`), so the image starts instantly and its version is a real image property.
+proxy spawns and supervises the stdio child as a single foreground process. For a `node` MCP the package is
+installed at **build time** (`npm ci`); for a `dotnet` MCP its `/app` is copied from its digest-pinned
+upstream image instead. Either way the image starts instantly and its version is a real image property.
 
 `mcp-auth-proxy` is a generic OIDC Relying Party that discovers any compliant provider via its
 `/.well-known/openid-configuration`, so the images are **IdP-agnostic** — nothing IdP-specific is baked.
@@ -321,7 +324,8 @@ package, or Node base). A digest-only base rebuild maps to a patch bump.
 
 Per-image versions use **scope-based commit routing**: one semantic-release run per image (tag prefix
 `mcp-<name>-v*`) accepts its own commit scope (`hevy`/`todoist`) plus the shared `proxy`/`node`/`image`
-scopes — so a shared change versions every image while an MCP bump versions only its own. Any other commit
+scopes — plus, for `type: dotnet` images (e.g. `mcp-immich`), the shared `dotnet` scope — so a shared change
+versions every image (or every `dotnet` image) while an MCP bump versions only its own. Any other commit
 (unscoped, or `ci:`/`docs:`/`chore:`) releases nothing — see [CLAUDE.md](./CLAUDE.md) for the conventions.
 Tags published: `:<semver>` + `:latest`.
 
@@ -341,6 +345,7 @@ image(s). Using `mcp-hevy` as the example:
 | `hevy-mcp` upstream **major** | `feat(hevy): …` + `BREAKING CHANGE:` footer (Renovate) | major | — |
 | `mcp-auth-proxy` edge bump | `fix(proxy):` / `feat(proxy): …` (Renovate) | per severity | **all bump** |
 | `node` base bump (LTS) | `fix(node):` / `feat(node): …` (Renovate) | per severity | **all bump** |
+| ASP.NET base bump (`type: dotnet` images) | `fix(dotnet):` / `feat(dotnet): …` (Renovate) | — | — (**all `type: dotnet` images bump**) |
 | image runtime change (entrypoint, schema shim, baked script) | `fix(image):` / `feat(image): …` (us) | per severity | **all bump** |
 
 "Per severity" follows the same rule as the MCP rows: `feat` → minor, `fix`/digest → patch,

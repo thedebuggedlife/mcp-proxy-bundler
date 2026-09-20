@@ -47,13 +47,13 @@ Use these for repo plumbing (CI, tests, docs, the release config itself).
 - `npm run test:unit` — unit tests (Vitest)
 - `./scripts/build.sh <mcp>` — build one image locally
 - `MCP_NAME=<mcp> npm run test:integration` — full real-Authelia integration suite for one image
-- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}`. For a `type: dotnet` MCP
-  the files are `mcps/<name>/{mcp.yaml,upstream.Dockerfile}` and the Renovate `packageRule` matches the
-  `dockerfile` manager on `mcps/<name>/upstream.Dockerfile`. Then register `<name>` in
-  `renovate.json` (a `packageRule` scoping `mcps/<name>/package.json` bumps to `semanticCommitScope`
-  `<name>`, else upstream bumps never release — guarded by `test/unit/renovate-rules.test.ts`),
-  `test/integration/helpers/mcp-under-test.ts` (harness registry — apiKeyEnvs, stable `expectedTools`)
-  and `test/unit/ci-matrix.test.ts` (inventory tripwire), and add a row to the README **Available MCPs**
+- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}` (or, for a `type: dotnet`
+  MCP, `mcps/<name>/{mcp.yaml,upstream.Dockerfile}`), then register `<name>` in `renovate.json` (a
+  `packageRule` scoping the MCP's tracked file — `mcps/<name>/package.json`, or `upstream.Dockerfile` for
+  `dotnet` — to `semanticCommitScope` `<name>`, else upstream bumps never release — guarded by
+  `test/unit/renovate-rules.test.ts`), `test/integration/helpers/mcp-under-test.ts` (harness registry —
+  apiKeyEnvs, stable `expectedTools`, optional `dummyEnv` for shape-validated credentials) and
+  `test/unit/ci-matrix.test.ts` (inventory tripwire), and add a row to the README **Available MCPs**
   table. No Dockerfile or CI-workflow change is needed (the matrix auto-discovers `mcps/*`).
 
 ## Agent workflow (superpowers + Paseo)
