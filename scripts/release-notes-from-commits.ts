@@ -1,7 +1,7 @@
 // Bridge for @semantic-release/exec generateNotesCmd: derive the changed input
-// (proxy | node | <mcp>) and old→new version from the conventional-commit scope +
-// subject of the commits in this release, then call the upstream notes aggregator
-// (design Appendix B.4). Emits the composite GitHub Release body to stdout.
+// (proxy | node | dotnet | <mcp>) and old→new version from the conventional-commit
+// scope + subject of the commits in this release, then call the upstream notes
+// aggregator (design Appendix B.4). Emits the composite GitHub Release body to stdout.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -13,7 +13,8 @@ import {
   type ChangedKind,
   type FetchLike,
 } from './aggregate-release-notes.ts'
-import { loadMcpConfig } from './lib/mcp-config.ts'
+import { buildMeta } from './lib/build-meta.ts'
+import { loadMcpConfig, type McpType } from './lib/mcp-config.ts'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(moduleDir, '..')
@@ -29,10 +30,12 @@ interface DerivedChange {
 //   "chore(node): update node Docker tag to v26.4.0"
 //   "fix(proxy): update ghcr.io/sigbit/mcp-auth-proxy Docker tag to v2.11.0"
 //   "feat(hevy): update dependency hevy-mcp to v1.26.0"
+//   "fix(dotnet): update mcr.microsoft.com/dotnet/aspnet docker tag to v10.0.13-noble"
 // We extract the scope and a "from X to Y" / "to vY" version pair.
 export function deriveChange(
   commitSubjects: string[],
   mcpName: string,
+  type: McpType = 'node',
 ): DerivedChange | undefined {
   for (const subject of commitSubjects) {
     const scopeMatch = subject.match(/^[a-z]+\(([^)]+)\)[!]?:/i)
@@ -41,9 +44,11 @@ export function deriveChange(
     const kind: ChangedKind | undefined =
       scope === 'proxy' || scope === 'node'
         ? scope
-        : scope === mcpName
-          ? 'mcp'
-          : undefined
+        : scope === 'dotnet' && type === 'dotnet'
+          ? 'dotnet'
+          : scope === mcpName
+            ? 'mcp'
+            : undefined
     if (!kind) continue
 
     const fromTo = subject.match(/from v?([\w.-]+) to v?([\w.-]+)/i)
@@ -60,7 +65,7 @@ export function deriveChange(
   return undefined
 }
 
-function readDockerfileTags(): { proxy: string; node: string } {
+function readDockerfileTags(): { proxy: string; node: string; dotnet?: string } {
   const dockerfile = readFileSync(join(repoRoot, 'Dockerfile'), 'utf8')
   const proxy = dockerfile.match(
     /^FROM ghcr\.io\/sigbit\/mcp-auth-proxy:([^\s@]+)/m,
@@ -68,8 +73,11 @@ function readDockerfileTags(): { proxy: string; node: string } {
   const node = dockerfile
     .match(/^FROM node:([^\s@]+)/m)?.[1]
     ?.replace(/-slim$/, '')
+  const dotnet = dockerfile
+    .match(/^FROM mcr\.microsoft\.com\/dotnet\/aspnet:([^\s@]+)/m)?.[1]
+    ?.replace(/-[a-z].*$/i, '')
   if (!proxy || !node) throw new Error('Could not parse Dockerfile FROM tags')
-  return { proxy, node }
+  return { proxy, node, dotnet }
 }
 
 function commitsInRelease(): string[] {
@@ -100,21 +108,22 @@ async function main(): Promise<void> {
   if (!semver) throw new Error('NEXT_RELEASE_VERSION env var is required')
 
   const config = loadMcpConfig(mcpName)
+  const meta = buildMeta(mcpName)
   const tags = readDockerfileTags()
-  const pkgPath = join(repoRoot, 'mcps', mcpName, 'package.json')
-  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
-    dependencies?: Record<string, string>
-  }
-  const packageVersion = pkg.dependencies?.[config.mcpPackage] ?? ''
+  const upstreamSource =
+    config.type === 'dotnet'
+      ? { mcpRepo: config.mcpRepo }
+      : { mcpPackage: config.mcpPackage }
 
   const labels = {
     proxyVersion: tags.proxy,
     nodeVersion: tags.node,
-    package: config.mcpPackage,
-    packageVersion,
+    dotnetVersion: config.type === 'dotnet' ? tags.dotnet : undefined,
+    package: meta.upstream,
+    packageVersion: meta.upstreamVersion,
   }
 
-  const derived = deriveChange(commitsInRelease(), mcpName)
+  const derived = deriveChange(commitsInRelease(), mcpName, config.type)
 
   let input: AggregateInput
   if (derived) {
@@ -124,7 +133,7 @@ async function main(): Promise<void> {
       semver,
       oldVersion: derived.oldVersion,
       newVersion: derived.newVersion,
-      mcpPackage: derived.kind === 'mcp' ? config.mcpPackage : undefined,
+      ...(derived.kind === 'mcp' ? upstreamSource : {}),
       labels,
     }
   } else {
@@ -134,8 +143,8 @@ async function main(): Promise<void> {
       kind: 'mcp',
       image: `mcp-${mcpName}`,
       semver,
-      newVersion: packageVersion || semver,
-      mcpPackage: config.mcpPackage,
+      newVersion: meta.upstreamVersion || semver,
+      ...upstreamSource,
       labels,
     }
   }

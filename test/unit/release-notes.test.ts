@@ -194,6 +194,95 @@ describe('aggregateReleaseNotes', () => {
       /mcpPackage is required/,
     )
   })
+
+  it('links Microsoft’s servicing notes for a dotnet bump, stripping the distro suffix', async () => {
+    const failingFetch: FetchLike = async (url) => {
+      throw new Error(`unexpected fetch: ${url}`)
+    }
+    const body = await aggregateReleaseNotes(
+      {
+        kind: 'dotnet',
+        image: 'mcp-immich',
+        semver: '1.0.1',
+        oldVersion: '10.0.12-noble',
+        newVersion: '10.0.13-noble',
+      },
+      { fetch: failingFetch },
+    )
+    expect(body).toContain('# mcp-immich 1.0.1 — dotnet 10.0.12-noble → 10.0.13-noble')
+    expect(body).toContain('### .NET 10.0.13')
+    expect(body).toContain(
+      'https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.13/10.0.13.md',
+    )
+  })
+
+  it('notes a digest-only dotnet rebuild as a patch', async () => {
+    const failingFetch: FetchLike = async (url) => {
+      throw new Error(`unexpected fetch: ${url}`)
+    }
+    const body = await aggregateReleaseNotes(
+      {
+        kind: 'dotnet',
+        image: 'mcp-immich',
+        semver: '1.0.2',
+        oldVersion: '10.0.13',
+        newVersion: '10.0.13',
+      },
+      { fetch: failingFetch },
+    )
+    expect(body).toContain('Base OS layer rebuild (same .NET version, new digest) → patch.')
+  })
+
+  it('uses mcpRepo directly for a repo-tracked MCP and never queries npm', async () => {
+    const { fetch } = mockFetch({
+      'https://api.github.com/repos/barryw/ImmichMCP/releases/tags/v3.3.4': {
+        json: {
+          html_url: 'https://github.com/barryw/ImmichMCP/releases/tag/v3.3.4',
+          body: 'Adds OCR search.',
+        },
+      },
+    })
+    const guardedFetch: FetchLike = async (url, init) => {
+      if (url.includes('registry.npmjs.org')) {
+        throw new Error(`unexpected npm request: ${url}`)
+      }
+      return fetch(url, init)
+    }
+    const body = await aggregateReleaseNotes(
+      {
+        kind: 'mcp',
+        image: 'mcp-immich',
+        semver: '1.1.0',
+        newVersion: '3.3.4',
+        mcpRepo: 'barryw/ImmichMCP',
+        labels: {
+          package: 'ghcr.io/barryw/immichmcp',
+          packageVersion: '3.3.4',
+          dotnetVersion: '10.0.12',
+        },
+      },
+      { fetch: guardedFetch },
+    )
+    expect(body).toContain('### barryw/ImmichMCP 3.3.4')
+    expect(body).toContain('Adds OCR search.')
+    expect(body).toContain('- dotnet-version: `10.0.12`')
+  })
+
+  it('falls back to the GitHub release link when a repo-tracked MCP has no release body', async () => {
+    const { fetch } = mockFetch({}) // both release-tag lookups (v3.3.4 and 3.3.4) 404
+    const body = await aggregateReleaseNotes(
+      {
+        kind: 'mcp',
+        image: 'mcp-immich',
+        semver: '1.1.0',
+        newVersion: '3.3.4',
+        mcpRepo: 'barryw/ImmichMCP',
+      },
+      { fetch },
+    )
+    expect(body).toContain('https://github.com/barryw/ImmichMCP/releases/tag/v3.3.4')
+    expect(body).not.toContain('npmjs.com')
+  })
 })
 
 describe('deriveChange', () => {
@@ -236,5 +325,27 @@ describe('deriveChange', () => {
     expect(
       deriveChange(['docs: tidy README', 'chore: reformat'], 'hevy'),
     ).toBeUndefined()
+  })
+
+  it('maps the dotnet scope to kind dotnet for a dotnet image', () => {
+    expect(
+      deriveChange(
+        ['fix(dotnet): update mcr.microsoft.com/dotnet/aspnet docker tag to v10.0.13-noble'],
+        'immich',
+        'dotnet',
+      ),
+    ).toEqual({ kind: 'dotnet', oldVersion: undefined, newVersion: '10.0.13-noble' })
+  })
+
+  it('ignores the dotnet scope for a node image', () => {
+    expect(
+      deriveChange(['fix(dotnet): update mcr.microsoft.com/dotnet/aspnet docker tag to v10.0.13-noble'], 'hevy'),
+    ).toBeUndefined()
+  })
+
+  it('derives an image-tracked MCP bump from a Renovate docker-tag subject', () => {
+    expect(
+      deriveChange(['feat(immich): update ghcr.io/barryw/immichmcp docker tag to v3.4.0'], 'immich', 'dotnet'),
+    ).toEqual({ kind: 'mcp', oldVersion: undefined, newVersion: '3.4.0' })
   })
 })
