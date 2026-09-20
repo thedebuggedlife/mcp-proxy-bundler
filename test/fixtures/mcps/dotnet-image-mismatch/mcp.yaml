@@ -1,0 +1,11 @@
+name: dotnet-image-mismatch
+displayName: "Dotnet Valid"
+type: dotnet
+mcpImage: ghcr.io/example/valid-mcp
+mcpRepo: example/valid-mcp
+mcpAssembly: ValidMcp.dll
+mcpArgs: ["--stdio"]
+runtime:
+  apiKeyEnvs:
+    - VALID_BASE_URL
+    - VALID_API_KEY
