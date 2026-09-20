@@ -59,3 +59,32 @@ describe('build-common.sh load_build_context', () => {
     expect(() => buildArgsFor('does-not-exist')).toThrowError()
   })
 })
+
+describe('build-common.sh load_build_context — dotnet MCP', () => {
+  const args = buildArgsFor('immich')
+  const pin = readFileSync(
+    join(repoRoot, 'mcps', 'immich', 'upstream.Dockerfile'),
+    'utf8',
+  )
+    .trim()
+    .replace(/^FROM\s+/, '')
+  const dotnetVersion = /^FROM mcr\.microsoft\.com\/dotnet\/aspnet:([^@\s]+?)-noble/m.exec(dockerfile)![1]
+
+  it('selects the dotnet target and passes the pinned upstream image', () => {
+    expect(args[args.indexOf('--target') + 1]).toBe('dotnet')
+    expect(valuesAfter(args, '--build-arg')).toEqual([
+      `MCP_IMAGE=${pin}`,
+      'MCP_LAUNCH=dotnet /app/mcp/ImmichMCP.dll --stdio',
+    ])
+  })
+
+  it('stamps the four shared labels plus dotnet-version', () => {
+    const labels = valuesAfter(args, '--label')
+    expect(labels).toHaveLength(5)
+    expect(labels).toContain('io.thedebuggedlife.mcp.package=ghcr.io/barryw/immichmcp')
+    expect(labels).toContain(
+      `io.thedebuggedlife.mcp.package-version=${pin.split(':')[1].split('@')[0].replace(/^v/, '')}`,
+    )
+    expect(labels[4]).toBe(`io.thedebuggedlife.mcp.dotnet-version=${dotnetVersion}`)
+  })
+})

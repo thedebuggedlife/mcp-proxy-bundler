@@ -56,6 +56,21 @@ describe('Dockerfile runtime targets', () => {
       ])
     },
   )
+
+  it('has a dotnet target built on the literal, noble-pinned ASP.NET stage', () => {
+    expect(runtimeTargets.map((s) => s.name)).toContain('dotnet')
+    expect(stages.find((s) => s.name === 'dotnet-upstream')?.base).toMatch(
+      /^mcr\.microsoft\.com\/dotnet\/aspnet:\d+\.\d+\.\d+-noble@sha256:[0-9a-f]{64}$/,
+    )
+  })
+
+  it('takes the dotnet MCP payload from the build-arg image, defaulting to scratch', () => {
+    expect(dockerfile).toMatch(/^ARG MCP_IMAGE=scratch$/m)
+    expect(stages.find((s) => s.name === 'mcp-image')?.base).toBe('${MCP_IMAGE}')
+    const dotnet = stages.find((s) => s.name === 'dotnet')
+    expect(dotnet?.instructions).toContain('COPY --from=mcp-image /app /app/mcp')
+    expect(dotnet?.instructions).toContain('ENV DOTNET_EnableDiagnostics=0')
+  })
 })
 
 describe('entrypoint.sh', () => {
