@@ -16,6 +16,7 @@ interface PackageRule {
   semanticCommitType?: string
   semanticCommitScope?: string
   commitBody?: string
+  enabled?: boolean
 }
 
 interface RenovateConfig {
@@ -38,6 +39,7 @@ interface Resolved {
   scope?: string
   /** true when the resulting commit carries a `BREAKING CHANGE:` footer */
   breaking: boolean
+  enabled?: boolean
 }
 
 // Mirrors Renovate's packageRules merge: every rule whose match* predicates all
@@ -56,6 +58,7 @@ function resolve(dep: Dep): Resolved {
       out.scope = rule.semanticCommitScope
     if (rule.commitBody !== undefined)
       out.breaking = /BREAKING CHANGE:/.test(rule.commitBody)
+    if (rule.enabled !== undefined) out.enabled = rule.enabled
   }
   return out
 }
@@ -74,6 +77,16 @@ const HEVY: Omit<Dep, 'updateType'> = {
   manager: 'npm',
   depName: 'hevy-mcp',
   fileName: 'mcps/hevy/package.json',
+}
+const DOTNET: Omit<Dep, 'updateType'> = {
+  manager: 'dockerfile',
+  depName: 'mcr.microsoft.com/dotnet/aspnet',
+  fileName: 'Dockerfile',
+}
+const IMMICH: Omit<Dep, 'updateType'> = {
+  manager: 'dockerfile',
+  depName: 'ghcr.io/barryw/immichmcp',
+  fileName: 'mcps/immich/upstream.Dockerfile',
 }
 
 describe('renovate.json config shape', () => {
@@ -187,6 +200,52 @@ describe('Appendix B.2 — Renovate → conventional-commit → bump mapping', (
     expect(resolve({ ...HEVY, updateType: 'digest' })).toEqual({
       type: 'fix',
       scope: 'hevy',
+      breaking: false,
+    })
+  })
+
+  // .NET base (dotnet images only)
+  it('dotnet patch → fix(dotnet) → composite patch', () => {
+    expect(resolve({ ...DOTNET, updateType: 'patch' })).toEqual({
+      type: 'fix',
+      scope: 'dotnet',
+      breaking: false,
+    })
+  })
+
+  it('dotnet digest-only → fix(dotnet) → composite patch', () => {
+    expect(resolve({ ...DOTNET, updateType: 'digest' })).toEqual({
+      type: 'fix',
+      scope: 'dotnet',
+      breaking: false,
+    })
+  })
+
+  it('dotnet major is disabled — the runtime major follows upstream’s target framework', () => {
+    expect(resolve({ ...DOTNET, updateType: 'major' }).enabled).toBe(false)
+  })
+
+  // MCP tracked through an upstream image (immich)
+  it('image-tracked MCP major → feat(immich) + BREAKING CHANGE footer', () => {
+    expect(resolve({ ...IMMICH, updateType: 'major' })).toEqual({
+      type: 'feat',
+      scope: 'immich',
+      breaking: true,
+    })
+  })
+
+  it('image-tracked MCP minor → feat(immich)', () => {
+    expect(resolve({ ...IMMICH, updateType: 'minor' })).toEqual({
+      type: 'feat',
+      scope: 'immich',
+      breaking: false,
+    })
+  })
+
+  it('image-tracked MCP digest → fix(immich)', () => {
+    expect(resolve({ ...IMMICH, updateType: 'digest' })).toEqual({
+      type: 'fix',
+      scope: 'immich',
       breaking: false,
     })
   })
