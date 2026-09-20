@@ -17,7 +17,7 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 - The edge proxy and Node base are **digest-pinned** and **auto-bumped** by Renovate.
 - Every bump is gated by a real CI test suite (build + OAuth e2e against a live Authelia) before publish.
 - Each image carries **honest semver** and OCI labels recording exactly what changed.
-- Adding an MCP is two files plus a lockfile.
+- Adding an MCP is two or three small config files — no Dockerfile or CI changes.
 
 ## Available MCPs
 
@@ -25,17 +25,18 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 |---|---|---|---|
 | Discord | `ghcr.io/thedebuggedlife/mcp-discord` | [`@pasympa/discord-mcp`](https://www.npmjs.com/package/@pasympa/discord-mcp) | [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) |
 | Hevy | `ghcr.io/thedebuggedlife/mcp-hevy` | [`hevy-mcp`](https://www.npmjs.com/package/hevy-mcp) | [chrisdoc/hevy-mcp](https://github.com/chrisdoc/hevy-mcp) |
-| Immich | `ghcr.io/thedebuggedlife/mcp-immich` | [`ghcr.io/barryw/immichmcp`](https://github.com/barryw/ImmichMCP) (.NET) | [barryw/ImmichMCP](https://github.com/barryw/ImmichMCP) |
+| Immich | `ghcr.io/thedebuggedlife/mcp-immich` | [`ghcr.io/barryw/immichmcp`](https://github.com/users/barryw/packages/container/package/immichmcp) (.NET) | [barryw/ImmichMCP](https://github.com/barryw/ImmichMCP) |
 | PagerDuty | `ghcr.io/thedebuggedlife/mcp-pagerduty` | [`@vineethnkrishnan/pagerduty-mcp`](https://www.npmjs.com/package/@vineethnkrishnan/pagerduty-mcp) | [vineethkrishnan/mcp-pool](https://github.com/vineethkrishnan/mcp-pool/tree/main/packages/pagerduty) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
 | Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
 
-> **Immich — seeing images.** By default the server returns URLs. Set `DOWNLOAD_MODE=base64` in your
-> deployment to have it return images as MCP image content the model can see; `MAX_INLINE_DOWNLOAD_BYTES`
-> (default 25 MiB) caps the inline size. These are consumer settings and are not baked into the image.
+> **Immich.** Requires `IMMICH_BASE_URL` (your Immich server's URL, as reachable from the container) and
+> `IMMICH_API_KEY`. By default the server returns URLs; set `DOWNLOAD_MODE=base64` in your deployment to
+> have it return images as MCP image content the model can see instead, with `MAX_INLINE_DOWNLOAD_BYTES`
+> (default 25 MiB) capping the inline size. These are consumer settings and are not baked into the image.
 
 **Want another MCP?** [Open a new-MCP request](https://github.com/thedebuggedlife/mcp-proxy-bundler/issues/new?template=new-mcp.yml)
-with the npm package and, if you know them, its stdio bin and API-key env var. Most stdio MCPs onboard as a
+with the npm package (or container image) and, if you know them, its stdio bin and API-key env var. Most stdio MCPs onboard as a
 [config-only change](#how-to-add-a-new-mcp) — which you're also welcome to send as a PR yourself.
 
 ## How to use (deploy a published image)
@@ -308,7 +309,7 @@ exactly what changed:
 |---|---|
 | `io.thedebuggedlife.mcp.proxy-version` | `mcp-auth-proxy` `FROM` tag in the Dockerfile |
 | `io.thedebuggedlife.mcp.node-version` | `node` `FROM` tag in the Dockerfile (`-slim` stripped) |
-| `io.thedebuggedlife.mcp.dotnet-version` | `dotnet` images only. `mcr.microsoft.com/dotnet/aspnet` `FROM` tag in the Dockerfile (the `-noble` suffix stripped) |
+| `io.thedebuggedlife.mcp.dotnet-version` | **`dotnet` images only.** `mcr.microsoft.com/dotnet/aspnet` `FROM` tag in the Dockerfile (the `-noble` suffix stripped) |
 | `io.thedebuggedlife.mcp.package` | `mcpPackage` from `mcp.yaml` — for `dotnet` images, the upstream image name (`mcpImage`) instead |
 | `io.thedebuggedlife.mcp.package-version` | the pinned version from `mcps/<name>/package.json` — for `dotnet` images, the `upstream.Dockerfile` tag with any leading `v` stripped |
 
