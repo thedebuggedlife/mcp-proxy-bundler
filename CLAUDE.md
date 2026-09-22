@@ -21,8 +21,9 @@ the subject defaults to the PR title (multi-commit PR) or the single commit's su
 
 | Scope | Releases | Who writes it |
 |-------|----------|---------------|
-| `<mcp>` (e.g. `hevy`, `todoist`) | that one image | Renovate (MCP npm bump) |
-| `proxy`, `node` | **every** image (shared base) | Renovate (Dockerfile `FROM` bump) |
+| `<mcp>` (e.g. `hevy`, `todoist`) | that one image | Renovate (MCP npm bump, or the `upstream.Dockerfile` pin for `dotnet` MCPs) |
+| `proxy`, `node` | **every** image (shared base; every image carries Node for the schema shim) | Renovate (Dockerfile `FROM` bump) |
+| `dotnet` | every **`type: dotnet`** image (shared ASP.NET base) | Renovate (Dockerfile `FROM` bump) |
 | `image` | **every** image | **us**, for changes to the built image's runtime (Dockerfile non-`FROM`, `entrypoint.sh`, the schema shim, baked scripts) |
 
 ### Types
@@ -46,11 +47,13 @@ Use these for repo plumbing (CI, tests, docs, the release config itself).
 - `npm run test:unit` — unit tests (Vitest)
 - `./scripts/build.sh <mcp>` — build one image locally
 - `MCP_NAME=<mcp> npm run test:integration` — full real-Authelia integration suite for one image
-- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}`, then register `<name>` in
-  `renovate.json` (a `packageRule` scoping `mcps/<name>/package.json` bumps to `semanticCommitScope`
-  `<name>`, else upstream bumps never release — guarded by `test/unit/renovate-rules.test.ts`),
-  `test/integration/helpers/mcp-under-test.ts` (harness registry — apiKeyEnvs, stable `expectedTools`)
-  and `test/unit/ci-matrix.test.ts` (inventory tripwire), and add a row to the README **Available MCPs**
+- Add a new MCP: drop `mcps/<name>/{package.json,package-lock.json,mcp.yaml}` (or, for a `type: dotnet`
+  MCP, `mcps/<name>/{mcp.yaml,upstream.Dockerfile}`), then register `<name>` in `renovate.json` (a
+  `packageRule` scoping the MCP's tracked file — `mcps/<name>/package.json`, or `upstream.Dockerfile` for
+  `dotnet` — to `semanticCommitScope` `<name>`, else upstream bumps never release — guarded by
+  `test/unit/renovate-rules.test.ts`), `test/integration/helpers/mcp-under-test.ts` (harness registry —
+  apiKeyEnvs, stable `expectedTools`, optional `dummyEnv` for shape-validated credentials) and
+  `test/unit/ci-matrix.test.ts` (inventory tripwire), and add a row to the README **Available MCPs**
   table. No Dockerfile or CI-workflow change is needed (the matrix auto-discovers `mcps/*`).
 
 ## Agent workflow (superpowers + Paseo)

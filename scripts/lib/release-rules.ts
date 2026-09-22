@@ -1,3 +1,5 @@
+import type { McpType } from './mcp-config.ts'
+
 // Hardened per-image release rules for @semantic-release/commit-analyzer.
 //
 // The analyzer applies the HIGHEST release type among ALL matching custom rules,
@@ -17,25 +19,26 @@
 // Scopes that release (see CLAUDE.md for the authoring conventions):
 //   - <mcp> (e.g. `hevy`, `todoist`) -> that one image. Renovate sets this for
 //     MCP npm bumps.
-//   - `proxy` / `node` -> the shared base, so EVERY image. Renovate sets these
-//     for the Dockerfile FROM bumps.
+//   - `proxy` / `node` -> the shared base, so EVERY image (every image carries
+//     Node for the schema shim). Renovate sets these for the Dockerfile FROM bumps.
+//   - `dotnet` -> the shared ASP.NET base, so every `type: dotnet` image only.
 //   - `image` -> a human-authored change to the built image's runtime
 //     (Dockerfile non-FROM, entrypoint.sh, the schema shim, baked scripts) that
 //     should rebuild EVERY image.
-export function releaseRulesFor(name: string) {
+
+export const SHARED_SCOPES: Record<McpType, string[]> = {
+  node: ['proxy', 'image', 'node'],
+  dotnet: ['proxy', 'image', 'node', 'dotnet'],
+}
+
+export function releaseRulesFor(name: string, type: McpType = 'node') {
+  const scopes = [name, ...SHARED_SCOPES[type]]
   return [
     { release: false },
-    { breaking: true, scope: name, release: 'major' },
-    { breaking: true, scope: 'proxy', release: 'major' },
-    { breaking: true, scope: 'node', release: 'major' },
-    { breaking: true, scope: 'image', release: 'major' },
-    { scope: name, type: 'feat', release: 'minor' },
-    { scope: name, type: 'fix', release: 'patch' },
-    { scope: 'proxy', type: 'feat', release: 'minor' },
-    { scope: 'proxy', type: 'fix', release: 'patch' },
-    { scope: 'node', type: 'feat', release: 'minor' },
-    { scope: 'node', type: 'fix', release: 'patch' },
-    { scope: 'image', type: 'feat', release: 'minor' },
-    { scope: 'image', type: 'fix', release: 'patch' },
+    ...scopes.map((scope) => ({ breaking: true, scope, release: 'major' })),
+    ...scopes.flatMap((scope) => [
+      { scope, type: 'feat', release: 'minor' },
+      { scope, type: 'fix', release: 'patch' },
+    ]),
   ]
 }

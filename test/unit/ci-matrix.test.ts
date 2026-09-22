@@ -9,6 +9,7 @@ describe('ci matrix discovery', () => {
     expect(discoverMcps()).toEqual([
       'discord',
       'hevy',
+      'immich',
       'pagerduty',
       'todoist',
       'trello',

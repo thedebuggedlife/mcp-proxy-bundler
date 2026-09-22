@@ -1,0 +1,10 @@
+name: dotnet-missing-repo
+displayName: "Dotnet Missing Repo"
+type: dotnet
+mcpImage: ghcr.io/example/valid-mcp
+mcpAssembly: ValidMcp.dll
+mcpArgs: ["--stdio"]
+runtime:
+  apiKeyEnvs:
+    - VALID_BASE_URL
+    - VALID_API_KEY

@@ -5,6 +5,7 @@ export interface BakedMcpOptions {
   image: string
   apiKeyEnvs: string[]
   apiKeyValue?: string
+  envOverrides?: Record<string, string>
 }
 
 export interface BakedMcpClient {
@@ -23,7 +24,7 @@ export async function connectBakedMcp(
 
   const envArgs = opts.apiKeyEnvs.flatMap((env) => [
     '-e',
-    `${env}=${apiKeyValue}`,
+    `${env}=${opts.envOverrides?.[env] ?? apiKeyValue}`,
   ])
 
   const args = [

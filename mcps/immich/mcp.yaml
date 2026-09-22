@@ -1,0 +1,11 @@
+name: immich
+displayName: "Immich MCP"
+type: dotnet
+mcpImage: ghcr.io/barryw/immichmcp
+mcpRepo: barryw/ImmichMCP
+mcpAssembly: ImmichMCP.dll
+mcpArgs: ["--stdio"]
+runtime:
+  apiKeyEnvs:
+    - IMMICH_BASE_URL
+    - IMMICH_API_KEY

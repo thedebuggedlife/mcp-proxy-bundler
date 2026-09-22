@@ -2,7 +2,7 @@
 // Release body (design Appendix B.4). The fetcher is injectable so the logic is
 // unit-tested with mocked upstream responses and no live network.
 
-export type ChangedKind = 'proxy' | 'node' | 'mcp'
+export type ChangedKind = 'proxy' | 'node' | 'dotnet' | 'mcp'
 
 export interface AggregateInput {
   kind: ChangedKind
@@ -10,12 +10,14 @@ export interface AggregateInput {
   semver: string // composite image version, e.g. 1.4.0
   oldVersion?: string
   newVersion: string
-  // for kind === 'mcp'
+  // for kind === 'mcp': the npm package, or the GitHub repo of an MCP that is not on npm
   mcpPackage?: string
+  mcpRepo?: string
   // OCI label values for traceability
   labels?: {
     proxyVersion?: string
     nodeVersion?: string
+    dotnetVersion?: string
     package?: string
     packageVersion?: string
   }
@@ -114,6 +116,7 @@ function renderLabels(labels?: AggregateInput['labels']): string {
   const rows: string[] = []
   if (labels.proxyVersion) rows.push(`- proxy-version: \`${labels.proxyVersion}\``)
   if (labels.nodeVersion) rows.push(`- node-version: \`${labels.nodeVersion}\``)
+  if (labels.dotnetVersion) rows.push(`- dotnet-version: \`${labels.dotnetVersion}\``)
   if (labels.package) rows.push(`- package: \`${labels.package}\``)
   if (labels.packageVersion)
     rows.push(`- package-version: \`${labels.packageVersion}\``)
@@ -157,26 +160,50 @@ export async function aggregateReleaseNotes(
       `- https://github.com/nodejs/node/releases/tag/v${input.newVersion}`,
     )
     block = lines.join('\n')
-  } else {
-    const mcpPackage = input.mcpPackage
-    if (!mcpPackage) {
-      throw new Error('mcpPackage is required when kind === "mcp"')
+  } else if (input.kind === 'dotnet') {
+    const version = input.newVersion.replace(/-[a-z].*$/i, '')
+    const band = version.split('.').slice(0, 2).join('.')
+    const lines = [`### .NET ${version}`]
+    if (input.oldVersion === input.newVersion) {
+      lines.push(
+        'Base OS layer rebuild (same .NET version, new digest) → patch.',
+      )
     }
-    const repo = await resolveMcpRepo(deps, mcpPackage, input.newVersion)
+    lines.push(
+      `- https://github.com/dotnet/core/blob/main/release-notes/${band}/${version}/${version}.md`,
+    )
+    block = lines.join('\n')
+  } else {
+    const upstreamName = input.mcpPackage ?? input.mcpRepo
+    if (!upstreamName) {
+      throw new Error(
+        'mcpPackage is required when kind === "mcp" (or mcpRepo for an MCP that is not on npm)',
+      )
+    }
+    const repo =
+      input.mcpRepo ??
+      (await resolveMcpRepo(deps, upstreamName, input.newVersion))
     let release: GithubRelease | undefined
     if (repo) {
       release =
         (await fetchGithubRelease(deps, repo, `v${input.newVersion}`)) ??
         (await fetchGithubRelease(deps, repo, input.newVersion))
     }
-    const fallbackLinks = [
-      `https://www.npmjs.com/package/${mcpPackage}/v/${input.newVersion}`,
-    ]
+    const fallbackLinks: string[] = []
+    if (input.mcpPackage) {
+      fallbackLinks.push(
+        `https://www.npmjs.com/package/${input.mcpPackage}/v/${input.newVersion}`,
+      )
+    }
     if (repo) {
-      fallbackLinks.push(`https://github.com/${repo}/blob/HEAD/CHANGELOG.md`)
+      fallbackLinks.push(
+        input.mcpRepo
+          ? `https://github.com/${repo}/releases/tag/v${input.newVersion}`
+          : `https://github.com/${repo}/blob/HEAD/CHANGELOG.md`,
+      )
     }
     block = renderUpstreamBlock(
-      `${mcpPackage} ${input.newVersion}`,
+      `${upstreamName} ${input.newVersion}`,
       release,
       fallbackLinks,
     )
@@ -201,7 +228,7 @@ async function mainCli(): Promise<void> {
   for (const key of required) {
     if (!opts[key]) {
       process.stderr.write(
-        `Usage: aggregate-release-notes.ts --kind <proxy|node|mcp> --image <name> --semver <v> --newVersion <v> [--oldVersion <v>] [--mcpPackage <pkg>]\n`,
+        `Usage: aggregate-release-notes.ts --kind <proxy|node|dotnet|mcp> --image <name> --semver <v> --newVersion <v> [--oldVersion <v>] [--mcpPackage <pkg> | --mcpRepo <owner/repo>]\n`,
       )
       process.exit(2)
     }
@@ -214,9 +241,11 @@ async function mainCli(): Promise<void> {
     newVersion: opts.newVersion,
     oldVersion: opts.oldVersion,
     mcpPackage: opts.mcpPackage,
+    mcpRepo: opts.mcpRepo,
     labels: {
       proxyVersion: opts.proxyVersion,
       nodeVersion: opts.nodeVersion,
+      dotnetVersion: opts.dotnetVersion,
       package: opts.package,
       packageVersion: opts.packageVersion,
     },

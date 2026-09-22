@@ -4,6 +4,7 @@
 // proxy/node bump versions every image while an MCP bump versions only its own.
 // Release rules live in a separate, unit-tested helper (test/unit/release-rules.test.ts).
 import { releaseRulesFor } from './scripts/lib/release-rules.ts'
+import { loadMcpConfig } from './scripts/lib/mcp-config.ts'
 
 const name = process.env.MCP_NAME
 if (!name) {
@@ -18,7 +19,7 @@ export default {
       '@semantic-release/commit-analyzer',
       {
         preset: 'angular',
-        releaseRules: releaseRulesFor(name),
+        releaseRules: releaseRulesFor(name, loadMcpConfig(name).type),
       },
     ],
     [
