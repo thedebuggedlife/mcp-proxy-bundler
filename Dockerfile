@@ -1,6 +1,6 @@
 # Literal, digest-pinned upstreams: single-sourced for Renovate and the build scripts' version parse.
 FROM ghcr.io/sigbit/mcp-auth-proxy:2.10.2@sha256:f92e0ccd22b2a7585bccedc366a3c872bbfa3500c7fa5e7443b40962bf248e8d AS proxy
-FROM node:26.9.0-slim@sha256:3a771f83944bb763050c23c0225c260638c4b7899e7a72485ef75e5e570499e5 AS node-upstream
+FROM node:26.10.0-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS node-upstream
 
 # Runtime-neutral payload, defined once for every runtime target.
 FROM scratch AS common
