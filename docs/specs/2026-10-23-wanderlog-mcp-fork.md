@@ -248,10 +248,13 @@ Order matters: the bundler PR depends on `1.0.0` existing on npm.
 3. **Packaging patches** (F2) and the three workflows.
 4. **Owner one-time setup:** create npm org `thedebuggedlife`; install the App on the fork; add secret
    `CLAUDE_CODE_OAUTH_TOKEN`; create the ruleset; enable auto-merge.
-5. **First publish by hand** (owner): `npm publish --provenance --access public` of `1.0.0`. npm trusted publishing
-   can only be attached to a package that already exists, and the workflow file must already be in the repo.
-   Then configure the trusted publisher (repo `thedebuggedlife/wanderlog-mcp`, workflow `release.yml`).
-6. **Bundler onboarding PR** (F7).
+5. **Placeholder publish by hand** (owner): npm trusted publishing can only be attached to a package that already
+   exists, and provenance can only be generated in CI. So the owner publishes a throwaway
+   `0.0.1-bootstrap.0` locally (`npm publish --access public --tag bootstrap`), configures the trusted publisher
+   (repo `thedebuggedlife/wanderlog-mcp`, workflow `release.yml`), then deprecates the placeholder.
+6. **First real release from CI:** `release.yml` also accepts `workflow_dispatch` with a `bump` input; dispatching
+   it with no prior `v*` tag publishes **`1.0.0` with provenance**.
+7. **Bundler onboarding PR** (F7).
 
 ---
 
