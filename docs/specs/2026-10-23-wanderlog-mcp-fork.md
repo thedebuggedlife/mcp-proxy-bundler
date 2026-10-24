@@ -137,8 +137,9 @@ Evidence (never blocks) — a JSON report of facts, each item with a stable `id`
 - Risky-API hits in added lines: `child_process`, `eval`/`new Function`, filesystem writes, `net`/`dgram`/new
   servers, non-literal `import()`, env reads outside the existing `WANDERLOG_*` set.
 - Whether the cookie/transport files (`config.ts`, `transport/rest.ts`, `transport/sharedb.ts`) or `.npmrc` changed.
-- `tools/list` diff between base and head builds, each started with a placeholder cookie and
-  `WANDERLOG_BASE_URL`/`WANDERLOG_WS_BASE_URL` pointed at `127.0.0.1` (no real network).
+- (From `exec`, untrusted, not an evidence item:) the `tools/list` diff between base and head builds, each
+  started with a placeholder cookie and `WANDERLOG_BASE_URL`/`WANDERLOG_WS_BASE_URL` pointed at `127.0.0.1`
+  (no real network).
 
 **`claude-review`** — `anthropics/claude-code-action` with `claude_code_oauth_token` (secret
 `CLAUDE_CODE_OAUTH_TOKEN`), tools limited to Read/Grep/Glob, and `--json-schema` so the result arrives as a
