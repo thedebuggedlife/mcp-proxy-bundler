@@ -112,6 +112,11 @@ Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go throug
 `CLAUDE_CODE_OAUTH_TOKEN`), tools limited to Read/Grep/Glob, and `--json-schema` so the result arrives as a
 validated `structured_output`. Inputs: the upstream diff and the evidence report.
 
+Model: `claude_args: --model opus --effort high` — the `opus` alias tracks the latest Opus (Opus 5.5 at time of
+writing). No `--fallback-model`: if Opus is unavailable the job fails and the PR goes `needs-human` rather than
+being reviewed by a weaker model. The `verdict` job records the model ID that actually ran (from the action's
+execution log) in the PR comment and, via the release, in the GitHub Release notes.
+
 The prompt states review policy as **guidelines with room for judgment**, not rules: new runtime dependencies,
 non-Wanderlog hosts, install scripts, risky APIs and cookie-handling changes each require a justification. It
 directs attention to credential exfiltration (cookie sent anywhere other than Wanderlog, or logged), runtime-built
