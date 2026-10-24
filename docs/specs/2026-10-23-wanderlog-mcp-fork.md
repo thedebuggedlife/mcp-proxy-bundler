@@ -51,7 +51,7 @@ Fork workflows:
 | Workflow | Trigger | Does |
 |---|---|---|
 | `sync.yml` | daily schedule + `workflow_dispatch` | Merges upstream `main` into the fixed branch `sync/upstream` and opens/updates the sync PR |
-| `review.yml` | `pull_request_target` on `sync/*` | `analyze` (gates + evidence) → `claude-review` → `verdict` (F4) |
+| `review.yml` | `pull_request_target` on `sync/*` | `static` (evidence, never runs PR code) + `exec` (build/test/`tools/list`) → `claude-review` → `verdict` (gates + decision) (F4) |
 | `release.yml` | push to `main` | `build` (no privileges) → `publish` (OIDC): version, publish, tag, GitHub Release (F6) |
 
 All fork tooling (scripts, prompt, schema, tests) lives under **`.github/fork/`** with its own `package.json`
@@ -110,7 +110,17 @@ Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go throug
 - Values derived from the PR (review text, branch names) reach `run:` steps only through `env:`, never by
   `${{ }}` interpolation into scripts.
 
-**`analyze`** (no secrets) runs the gates and gathers the evidence in one job (one install of each tree).
+**Artifact integrity.** Upstream code can run arbitrary commands wherever it executes (its build, its tests, its
+own server for `tools/list`), so nothing it could have touched is trusted. Two separate jobs (separate runners),
+both without secrets:
+
+- **`static`** never executes PR code (`npm ci --ignore-scripts`, `npm ls`, `npm audit`, git diffs, file reads
+  only). It produces the trusted `analysis` artifact: the diff, numstat, conflict list and evidence.
+- **`exec`** runs the build, tests and `tools/list`. Its results are untrusted: the build/test outcomes are a
+  sanity check (upstream controls its own tests by definition), and `tools.json` is used by the reviewer only to
+  choose the version bump.
+
+`verdict` evaluates the gates itself from the trusted `analysis` files plus `exec`'s build/test outcomes.
 
 Hard gates — the only ones:
 
