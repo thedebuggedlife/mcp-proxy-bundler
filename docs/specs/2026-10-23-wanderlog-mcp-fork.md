@@ -93,7 +93,11 @@ Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go throug
    inside the same merge commit, so upstream never alters our workflows or reviewer instructions.
 4. Force-push `sync/upstream`. If an open sync PR exists, retitle it — never open a second one. Otherwise open one.
 5. **On merge conflict:** commit the conflict markers; `review.yml` detects them deterministically, skips the
-   Claude review, and routes the PR to `needs-human`. A fetch failure fails the workflow (GitHub notifies the owner).
+   Claude review, and routes the PR to `needs-human`. Conflicts that leave no markers (e.g. upstream deletes a file
+   a carried patch modifies) are found by re-running `git merge-tree` on the merge's two parents in `static`.
+   A fetch failure fails the workflow (GitHub notifies the owner).
+6. **No re-rolls:** if `sync/upstream` already merges the current `main` and upstream SHA, the sync is a no-op, so
+   an unchanged merge is never re-reviewed.
 
 `workflow_dispatch` accepts `upstream_repo`/`upstream_ref` overrides and `dry_run`; a dry run uses the branch
 `sync/dry-run`, and `verdict` never enables auto-merge on that branch.
@@ -182,15 +186,21 @@ tool added → **minor**; otherwise → **patch**.
   PR comment, apply `release:<bump>`, enable auto-merge (merge commit).
 - Anything else — including a Claude job error, timeout, or schema-invalid output → label `needs-human`, post the
   concerns, request the owner's review. **Fail closed.**
+- `needs-human` is **sticky**: while the label is on the PR, `verdict` never auto-merges. The owner removes it and
+  re-runs the workflow to re-arm automated review.
 
 ### F5. Versioning
 
 The fork has **its own semver line starting at `1.0.0`**, independent of upstream's `0.x` (upstream's numbers are
 unpublished and would collide with its future releases). The bump comes from the merged PR's `release:*` label:
 set by `verdict` for sync PRs, by the author for our patch PRs (`release:patch` default; `release:none` for
-workflow/docs-only changes).
+workflow/docs-only changes). When several PRs merged since the last fork release tag (e.g. a queued release run
+was cancelled), the bump is the maximum over all of them.
 
 ### F6. Release
+
+No workflow uses any cache (`actions/cache`, or setup-node's implicit `package-manager-cache`, which is disabled
+explicitly): `exec` runs PR code with the base branch's cache scope, so a cache would let it poison later jobs.
 
 `release.yml`, on push to `main`, in two jobs so code never runs where publish credentials exist:
 
