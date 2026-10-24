@@ -6,6 +6,9 @@ export interface McpUnderTest {
   name: string
   image: string
   apiKeyEnvs: string[]
+  // Literal value for every apiKeyEnv when the MCP rejects the generic placeholder.
+  apiKeyValue?: string
+  extraEnv?: Record<string, string>
   // A resilient subset of stable tool names (asserted as a contained-subset, not
   // exact equality, so upstream tool additions don't break the test).
   expectedTools: string[]
@@ -58,9 +61,13 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
   },
 }
 
+export function mcpTestSpec(name: string): Omit<McpUnderTest, 'image'> | undefined {
+  return Object.prototype.hasOwnProperty.call(MCPS, name) ? MCPS[name] : undefined
+}
+
 export function mcpUnderTest(): McpUnderTest {
   const name = process.env.MCP_NAME ?? 'hevy'
-  const spec = MCPS[name]
+  const spec = mcpTestSpec(name)
   if (!spec) {
     throw new Error(
       `Unknown MCP_NAME "${name}". Known: ${Object.keys(MCPS).join(', ')}`,
