@@ -43,7 +43,7 @@ appropriate for an unofficial MCP holding a credential with full account access.
 Two repos, connected only through the npm registry.
 
 - **`thedebuggedlife/wanderlog-mcp`** — a GitHub fork of `shaikhspeare/wanderlog-mcp`. `main` = upstream history
-  plus a small set of our patches (F2). Publishes **`@thedebuggedlife/wanderlog-mcp`** (npm org `thedebuggedlife`).
+  plus a small set of our patches (F2). Publishes **`@thedebuggedlife/wanderlog-mcp`** (npm scope `@thedebuggedlife`, already owned by the owner).
 - **`mcp-proxy-bundler`** (this repo) — onboards `mcps/wanderlog/` against that package like any other npm MCP (F7).
 
 Fork workflows:
@@ -267,7 +267,7 @@ Order matters: the bundler PR depends on `1.0.0` existing on npm.
    in-session with the F4 policy and the evidence script run locally; findings are written up for owner approval.
    Fixes we decide to carry land as patch PRs.
 3. **Packaging patches** (F2) and the three workflows.
-4. **Owner one-time setup:** create npm org `thedebuggedlife`; install the App on the fork; add secret
+4. **Owner one-time setup:** install the App on the fork; add secret
    `CLAUDE_CODE_OAUTH_TOKEN`; create the ruleset; enable auto-merge.
 5. **Placeholder publish by hand** (owner): npm trusted publishing can only be attached to a package that already
    exists, and provenance can only be generated in CI. So the owner publishes a throwaway
