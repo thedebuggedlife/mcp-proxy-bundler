@@ -30,7 +30,7 @@ Wanderlog has **no public API and no official MCP**. Every integration drives it
 
 **Why a fork rather than the upstream npm package:** upstream publishes to npm by hand and last did so on
 2026-06-07 (`0.3.1`). Its `main` is 74 commits ahead, including ShareDB crash fixes (#82, #84, #60) and a
-startup auth-probe retry (#51); issue #65 (an unhandled rejection that crashes the process) is still open.
+startup auth-probe retry (#51), and the fix for issue #65 (an unhandled rejection that crashed the process; the issue is still open but the code on `main` no longer has the bug).
 A fork lets us ship reviewed fixes on our own cadence and puts a review gate in front of every upstream change —
 appropriate for an unofficial MCP holding a credential with full account access.
 
@@ -50,23 +50,36 @@ Fork workflows:
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `sync.yml` | daily schedule + `workflow_dispatch` | Merges upstream `main` into a `sync/<upstream-sha>` branch and opens/updates the sync PR |
-| `review.yml` | `pull_request_target` on `sync/*` | `gates` → `evidence` → `claude-review` → `verdict` (F4) |
-| `release.yml` | push to `main` | Version, build, publish, tag, GitHub Release (F6) |
+| `sync.yml` | daily schedule + `workflow_dispatch` | Merges upstream `main` into the fixed branch `sync/upstream` and opens/updates the sync PR |
+| `review.yml` | `pull_request_target` on `sync/*` | `analyze` (gates + evidence) → `claude-review` → `verdict` (F4) |
+| `release.yml` | push to `main` | `build` (no privileges) → `publish` (OIDC): version, publish, tag, GitHub Release (F6) |
+
+All fork tooling (scripts, prompt, schema, tests) lives under **`.github/fork/`** with its own `package.json`
+(dev-only `vitest`; scripts use only Node built-ins and run under Node's TypeScript type-stripping), so it never
+depends on upstream-controlled packages and is protected by the sync reset (F3).
 
 PRs are opened with a **GitHub App token** (the self-hosted Renovate App, installed on the fork), because PRs
-opened with `GITHUB_TOKEN` do not trigger other workflows.
+opened with `GITHUB_TOKEN` do not trigger other workflows. The App needs Contents, Pull requests, Commit
+statuses and **Workflows** write (pushing upstream history that touches `.github/workflows` requires it).
 
-A **ruleset** protects fork `main`: required checks `gates` and `verdict`; merge commits allowed; the admin
-(repo owner) may bypass to merge `needs-human` PRs and our own patch PRs.
+A **ruleset** protects fork `main`: required **commit statuses** `fork/gates` and `fork/verdict`, which the
+`verdict` job posts on the PR head SHA (explicit statuses, rather than relying on how `pull_request_target`
+check runs attach to commits); merge commits allowed; the admin (repo owner) may bypass to merge `needs-human`
+PRs and our own patch PRs.
 
 ### F2. Carried patches
 
 The fork may carry patches of its own. Upstream is only ever **merged**, never rebased, so a sync PR's diff is
 exactly the upstream delta and our patches survive. Allowed patches:
 
-- **Packaging:** scoped `name`, our `.github/` (upstream's CI and dependabot removed), a README fork banner.
-- **Urgent fixes** upstream has not landed (e.g. #65). Each is also offered upstream as a PR.
+- **Packaging:** scoped `name`; `repository`/`homepage`/`bugs` pointing at the fork (npm provenance rejects a
+  `repository.url` that does not match the publishing repo); our `.github/` (upstream's CI and dependabot
+  removed); a README fork banner.
+- **Fork-owned paths removed:** `CLAUDE.md`, `.claude/`, `.mcp.json` — Claude Code loads these as instructions
+  from the review workspace, so upstream must never control them.
+- **Urgent fixes** upstream has not landed. Each is also offered upstream as a PR. (#65 is already fixed on
+  upstream `main` — `scheduleReconnect` now awaits `subscribe()` inside the caught chain — so no fix is carried
+  for it; the initial review confirms.)
 
 Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go through `review.yml`.
 
@@ -75,12 +88,15 @@ Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go throug
 `sync.yml`:
 
 1. Fetch upstream `main`. If it is already an ancestor of fork `main`, exit.
-2. Create/reset `sync/<upstream-sha>` from fork `main`; `git merge --no-ff upstream/main`.
-3. Reset `.github/` to fork `main`'s version (upstream never alters our workflows) and commit.
-4. If an open sync PR exists, force-update it to the new branch head and retitle it — never open a second one.
-   Otherwise open one.
-5. **On merge conflict:** commit the conflict markers, open the PR labelled `needs-human`, skip automated review.
-   A fetch failure fails the workflow (GitHub notifies the owner).
+2. Reset `sync/upstream` to fork `main`; `git merge --no-ff --no-commit <upstream sha>`.
+3. Reset the **fork-owned paths** (`.github/`, `CLAUDE.md`, `.claude/`, `.mcp.json`) to fork `main`'s state
+   inside the same merge commit, so upstream never alters our workflows or reviewer instructions.
+4. Force-push `sync/upstream`. If an open sync PR exists, retitle it — never open a second one. Otherwise open one.
+5. **On merge conflict:** commit the conflict markers; `review.yml` detects them deterministically, skips the
+   Claude review, and routes the PR to `needs-human`. A fetch failure fails the workflow (GitHub notifies the owner).
+
+`workflow_dispatch` accepts `upstream_repo`/`upstream_ref` overrides and `dry_run`; a dry run uses the branch
+`sync/dry-run`, and `verdict` never enables auto-merge on that branch.
 
 ### F4. Review
 
@@ -91,26 +107,37 @@ Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go throug
   `npm ci --ignore-scripts`).
 - The job holding the Claude credential gets the code only as text, with read-only tools.
 - The job holding the App token reads only structured job outputs, never the PR's files.
+- Values derived from the PR (review text, branch names) reach `run:` steps only through `env:`, never by
+  `${{ }}` interpolation into scripts.
 
-**`gates`** (no secrets) — the only hard gates:
+**`analyze`** (no secrets) runs the gates and gathers the evidence in one job (one install of each tree).
+
+Hard gates — the only ones:
 
 1. **Build + tests:** `tsc` and upstream's unit tests pass.
-2. **Size cap:** upstream `src/` delta ≤ ~1,500 changed lines; larger → `needs-human`.
+2. **Size cap:** upstream `src/` delta ≤ 1,500 changed lines; larger → `needs-human`.
+3. **No conflict markers** outside the fork-owned paths (F3).
 
-**`evidence`** (no secrets, never blocks) — emits a JSON report of facts:
+Evidence (never blocks) — a JSON report of facts, each item with a stable `id`:
 
 - Production dependency diff (`npm ls --omit=dev --all`), `npm audit signatures`, `npm audit --omit=dev`.
-- Install-script (`preinstall`/`install`/`postinstall`/`prepare`) and `bin` changes.
-- Host literals in `src/`.
+- Lifecycle-script changes (`preinstall`/`install`/`postinstall`/`prepare`/`prepublish`/`prepublishOnly`/
+  `prepack`/`postpack`/`publish`/`postpublish`) and `bin` changes.
+- Hosts in `src/` that are new versus base, or not `wanderlog.com`/its subdomains/loopback.
 - Risky-API hits in added lines: `child_process`, `eval`/`new Function`, filesystem writes, `net`/`dgram`/new
   servers, non-literal `import()`, env reads outside the existing `WANDERLOG_*` set.
-- Whether the cookie/transport files (`config.ts`, `transport/rest.ts`, `transport/sharedb.ts`) changed.
+- Whether the cookie/transport files (`config.ts`, `transport/rest.ts`, `transport/sharedb.ts`) or `.npmrc` changed.
 - `tools/list` diff between base and head builds, each started with a placeholder cookie and
   `WANDERLOG_BASE_URL`/`WANDERLOG_WS_BASE_URL` pointed at `127.0.0.1` (no real network).
 
 **`claude-review`** — `anthropics/claude-code-action` with `claude_code_oauth_token` (secret
 `CLAUDE_CODE_OAUTH_TOKEN`), tools limited to Read/Grep/Glob, and `--json-schema` so the result arrives as a
 validated `structured_output`. Inputs: the upstream diff and the evidence report.
+
+Workspace layout follows the action's `pull_request_target` guidance: fork `main` at the workspace root, the PR
+head in `pr-head/` passed via `--add-dir`. Hardening: Bash/Write/Edit/Web tools disallowed; a deny rule on
+reading `/proc`; and `verdict` redacts token-shaped strings (`sk-ant-…`, `gh?_…`) from everything it posts, so a
+manipulated reviewer cannot publish a credential through its own output.
 
 Model: `claude_args: --model opus --effort high` — the `opus` alias tracks the latest Opus (Opus 5.5 at time of
 writing). No `--fallback-model`: if Opus is unavailable the job fails and the PR goes `needs-human` rather than
@@ -154,16 +181,25 @@ workflow/docs-only changes).
 
 ### F6. Release
 
-`release.yml`, on push to `main`:
+`release.yml`, on push to `main`, in two jobs so code never runs where publish credentials exist:
+
+**`build`** (`contents: read` only):
 
 1. Resolve the PR for the pushed commit; read its `release:*` label. None or `release:none` → stop.
 2. Next version = latest `v*` tag + bump.
-3. Stamp `package.json` **in the workspace only** (never committed, so it never conflicts with upstream's version
+3. `npm ci --ignore-scripts` → build → test.
+4. Stamp `package.json` **in the workspace only** (never committed, so it never conflicts with upstream's version
    bumps): `version`, and `upstream: { repository, commit }` where `commit = git merge-base HEAD upstream/main`.
-4. `npm ci` → build → test → `npm publish --provenance --access public` via **npm trusted publishing** (OIDC; no
-   stored npm token; pinned recent npm CLI). If the version already exists on npm (re-run), skip publishing.
-5. Only after a successful publish: tag `vX.Y.Z` and create a GitHub Release with Claude's summary and
-   dispositions, the upstream compare link (`<prev upstream sha>...<new>`), and our patch PRs since the last release.
+5. `npm pack` → upload the tarball as an artifact.
+
+**`publish`** (`id-token: write`, `contents: write`; runs no repo code):
+
+1. `npm publish <tarball> --provenance --access public --ignore-scripts` via **npm trusted publishing** (OIDC; no
+   stored npm token; pinned npm CLI ≥ 11.5.1). If the version already exists on npm (re-run), skip publishing.
+2. Only after a successful publish: create the **annotated** tag `vX.Y.Z` (message `upstream-commit: <sha>`, which
+   the next release reads to build its compare link) and a GitHub Release with Claude's summary and dispositions,
+   the model that reviewed, the upstream compare link (`<prev upstream sha>...<new>`), and the first-parent
+   commits since the last release.
 
 **Downstream, unchanged:** Renovate opens `feat(wanderlog)` / `fix(wanderlog)` in the bundler; bundler CI runs
 build + Tier-1 + Tier-2; minor/patch auto-merge (existing `automerge` rule) and semantic-release publishes
@@ -195,8 +231,8 @@ build + Tier-1 + Tier-2; minor/patch auto-merge (existing `automerge` rule) and 
 - `test/unit/ci-matrix.test.ts` — add `wanderlog` to the inventory.
 - README — Available MCPs row (npm link to our package; source link to the fork, noting it is a reviewed fork of
   `shaikhspeare/wanderlog-mcp`), and an *MCP-specific optional env* note: `WANDERLOG_COOKIE` is the `connect.sid`
-  browser cookie, valid ~1 year, with full account access — treat it as a password; `WANDERLOG_USER_AGENT` is
-  optional.
+  browser cookie, valid ~1 year, with full account access — treat it as a password; `WANDERLOG_USER_AGENT` and
+  `WANDERLOG_DEFAULT_CURRENCY` are optional.
 - Onboarding PR title: `feat(wanderlog): …` (releases `mcp-wanderlog` on merge).
 
 ---
@@ -208,7 +244,7 @@ Order matters: the bundler PR depends on `1.0.0` existing on npm.
 1. **Fork** `shaikhspeare/wanderlog-mcp` into `thedebuggedlife`, pinned at a recorded upstream `main` SHA.
 2. **Initial full review** of the whole `src/` at that SHA (not a delta — nothing has been reviewed yet), run
    in-session with the F4 policy and the evidence script run locally; findings are written up for owner approval.
-   Fixes we decide to carry (e.g. #65) land as patch PRs.
+   Fixes we decide to carry land as patch PRs.
 3. **Packaging patches** (F2) and the three workflows.
 4. **Owner one-time setup:** create npm org `thedebuggedlife`; install the App on the fork; add secret
    `CLAUDE_CODE_OAUTH_TOKEN`; create the ruleset; enable auto-merge.
