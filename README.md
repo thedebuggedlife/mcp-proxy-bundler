@@ -238,8 +238,10 @@ not re-authenticate across an update.
 explicitly to pin the host your API token is sent to. Of its two `apiKeyEnvs`, only
 `PAGERDUTY_API_KEY` is required; `PAGERDUTY_USER_EMAIL` is just the author of the incident write
 tools (acknowledge/resolve/reassign/note), so a read-only deployment can leave it a placeholder.
+
 `mcp-wanderlog` authenticates with `WANDERLOG_COOKIE`, the `connect.sid` session cookie from a logged-in
-wanderlog.com browser session (Wanderlog has no public API). It is valid for about a year and grants full
+wanderlog.com browser session (Wanderlog has no public API). Set it to the URL-encoded value exactly as the
+browser stores it (starting `s%3A`). It is valid for about a year and grants full
 access to the account — treat it as a password. It optionally reads `WANDERLOG_USER_AGENT` and
 `WANDERLOG_DEFAULT_CURRENCY`.
 

@@ -1,6 +1,6 @@
 # Wanderlog MCP via a Reviewed Fork — Design Specification
 
-> **Status:** Approved design — not yet implemented.
+> **Status:** Implemented — fork `v1.0.0` published 2026-10-24; bundler onboarding in this PR.
 > **Date:** 2026-10-23
 > **Extends:** [`2026-06-22-mcp-proxy-bundler.md`](2026-06-22-mcp-proxy-bundler.md) (the founding spec).
 > **Spans two repos:** this one (`mcp-proxy-bundler`) and a new fork, `thedebuggedlife/wanderlog-mcp`.
@@ -52,7 +52,7 @@ Fork workflows:
 |---|---|---|
 | `sync.yml` | daily schedule + `workflow_dispatch` | Merges upstream `main` into the fixed branch `sync/upstream` and opens/updates the sync PR |
 | `review.yml` | `pull_request_target` on `sync/*` | `static` (evidence, never runs PR code) + `exec` (build/test/`tools/list`) → `claude-review` → `verdict` (gates + decision) (F4) |
-| `release.yml` | push to `main` | `build` (no privileges) → `publish` (OIDC): version, publish, tag, GitHub Release (F6) |
+| `release.yml` | push to `main` + `workflow_dispatch` | `build` (no privileges) → `publish` (OIDC): version, publish, tag, GitHub Release (F6) |
 
 All fork tooling (scripts, prompt, schema, tests) lives under **`.github/fork/`** with its own `package.json`
 (dev-only `vitest`; scripts use only Node built-ins and run under Node's TypeScript type-stripping), so it never
@@ -64,13 +64,16 @@ statuses and **Workflows** write (pushing upstream history that touches `.github
 
 A **ruleset** protects fork `main`: required **commit statuses** `fork/gates` and `fork/verdict`, which the
 `verdict` job posts on the PR head SHA (explicit statuses, rather than relying on how `pull_request_target`
-check runs attach to commits); merge commits allowed; the admin (repo owner) may bypass to merge `needs-human`
+check runs attach to commits); merge commits and squash allowed (squash only for our own patch PRs — sync PRs
+are always merged with a merge commit, F2); the admin (repo owner) may bypass to merge `needs-human`
 PRs and our own patch PRs.
 
 ### F2. Carried patches
 
 The fork may carry patches of its own. Upstream is only ever **merged**, never rebased, so a sync PR's diff is
-exactly the upstream delta and our patches survive. Allowed patches:
+exactly the upstream delta and our patches survive. Sync PRs must be merged with a **merge commit**, never
+squashed: a squash drops the upstream parent, losing the ancestry that the next sync (F3) and the release's
+`upstream.commit` (F6) rely on. Allowed patches:
 
 - **Packaging:** scoped `name`; `repository`/`homepage`/`bugs` pointing at the fork (npm provenance rejects a
   `repository.url` that does not match the publishing repo); our `.github/` (upstream's CI and dependabot
@@ -88,7 +91,9 @@ Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go throug
 `sync.yml`:
 
 1. Fetch upstream `main`. If it is already an ancestor of fork `main`, exit.
-2. Reset `sync/upstream` to fork `main`; `git merge --no-ff --no-commit <upstream sha>`.
+2. Reset `sync/upstream` to fork `main`; `git merge --no-ff --no-commit <upstream sha>`, with `* merge=text`
+   forced via `info/attributes` so an upstream `.gitattributes` cannot pick a merge driver that hides conflicts
+   (`merge-conflicts.sh` forces the same when re-running `merge-tree`).
 3. Reset the **fork-owned paths** (`.github/`, `CLAUDE.md`, `.claude/`, `.mcp.json`) to fork `main`'s state
    inside the same merge commit, so upstream never alters our workflows or reviewer instructions.
 4. Force-push `sync/upstream`. If an open sync PR exists, retitle it — never open a second one. Otherwise open one.
@@ -110,7 +115,8 @@ Our own patch PRs are ordinary PRs, reviewed by the owner; they do not go throug
 - Upstream code is checked out and executed **only in jobs with no secrets** (`permissions: contents: read`,
   `npm ci --ignore-scripts`).
 - The job holding the Claude credential gets the code only as text, with read-only tools.
-- The job holding the App token reads only structured job outputs, never the PR's files.
+- The job holding the App token reads only structured job outputs and the trusted `analysis` artifact, never the
+  PR's files.
 - Values derived from the PR (review text, branch names) reach `run:` steps only through `env:`, never by
   `${{ }}` interpolation into scripts.
 
@@ -119,7 +125,10 @@ own server for `tools/list`), so nothing it could have touched is trusted. Two s
 both without secrets:
 
 - **`static`** never executes PR code (`npm ci --ignore-scripts`, `npm ls`, `npm audit`, git diffs, file reads
-  only). It produces the trusted `analysis` artifact: the diff, numstat, conflict list and evidence.
+  only). It installs from scratch directories holding only `package.json` + `package-lock.json`, with
+  `--git=/bin/false`, so the PR's project `.npmrc` is never read. It produces the trusted `analysis` artifact:
+  the diff, numstat, conflict list and evidence. `claude-review` and `verdict` download `analysis` by artifact
+  ID with `digest-mismatch: error`.
 - **`exec`** runs the build, tests and `tools/list`. Its results are untrusted: the build/test outcomes are a
   sanity check (upstream controls its own tests by definition), and `tools.json` is used by the reviewer only to
   choose the version bump.
@@ -130,29 +139,37 @@ Hard gates — the only ones:
 
 1. **Build + tests:** `tsc` and upstream's unit tests pass.
 2. **Size cap:** upstream `src/` delta ≤ 1,500 changed lines; larger → `needs-human`.
-3. **No conflict markers** outside the fork-owned paths (F3).
+3. **No conflicts (markers or merge-tree)** outside the fork-owned paths (F3).
 
 Evidence (never blocks) — a JSON report of facts, each item with a stable `id`:
 
 - Production dependency diff (`npm ls --omit=dev --all`), `npm audit signatures`, `npm audit --omit=dev`.
 - Lifecycle-script changes (`preinstall`/`install`/`postinstall`/`prepare`/`prepublish`/`prepublishOnly`/
-  `prepack`/`postpack`/`publish`/`postpublish`) and `bin` changes.
+  `prepack`/`postpack`/`publish`/`postpublish`) and `bin` changes; `packageManager` / `devEngines` changes
+  (`package:*`).
+- Lockfile sources (`lockfile-source:*`): `resolved` URLs off the npm registry or not matching the expected
+  registry tarball, local links, and v1 (or versionless) lockfiles.
 - Hosts in `src/` that are new versus base, or not `wanderlog.com`/its subdomains/loopback.
 - Risky-API hits in added lines: `child_process`, `eval`/`new Function`, filesystem writes, `net`/`dgram`/new
   servers, non-literal `import()`, env reads outside the existing `WANDERLOG_*` set.
-- Whether the cookie/transport files (`config.ts`, `transport/rest.ts`, `transport/sharedb.ts`) or `.npmrc` changed.
+- Sensitive files changed (`sensitive-file:*`): the cookie/transport files (`config.ts`, `transport/rest.ts`,
+  `transport/sharedb.ts`), `.npmrc`, `.gitattributes` at any depth, and nested agent files (`CLAUDE.md`,
+  `CLAUDE.local.md`, `.mcp.json`, `.claude/`).
 - (From `exec`, untrusted, not an evidence item:) the `tools/list` diff between base and head builds, each
   started with a placeholder cookie and `WANDERLOG_BASE_URL`/`WANDERLOG_WS_BASE_URL` pointed at `127.0.0.1`
   (no real network).
 
 **`claude-review`** — `anthropics/claude-code-action` with `claude_code_oauth_token` (secret
 `CLAUDE_CODE_OAUTH_TOKEN`), tools limited to Read/Grep/Glob, and `--json-schema` so the result arrives as a
-validated `structured_output`. Inputs: the upstream diff and the evidence report.
+validated `structured_output`. Inputs: the upstream diff and the evidence report (`analysis/`), and
+`exec/tools.json` (untrusted; used only for the bump).
 
 Workspace layout follows the action's `pull_request_target` guidance: fork `main` at the workspace root, the PR
-head in `pr-head/` passed via `--add-dir`. Hardening: Bash/Write/Edit/Web tools disallowed; a deny rule on
-reading `/proc`; and `verdict` redacts token-shaped strings (`sk-ant-…`, `gh?_…`) from everything it posts, so a
-manipulated reviewer cannot publish a credential through its own output.
+head in `pr-head/` passed via `--add-dir`, with agent files (`CLAUDE.md`, `CLAUDE.local.md`, `.mcp.json`,
+`.claude/`) at any depth deleted from `pr-head/` before the review. Hardening: reads allowlisted to `Read(./**)`;
+Bash/Write/Edit/Web tools disallowed; reads of `/proc`, `/tmp`, `/etc`, `/var` and runner paths denied;
+`allowed_bots: '*'` so App-opened sync PRs are reviewed; and `verdict` redacts token-shaped strings (`sk-ant-…`,
+`gh?_…`) from everything it posts, so a manipulated reviewer cannot publish a credential through its own output.
 
 Model: `claude_args: --model opus --effort high` — the `opus` alias tracks the latest Opus (Opus 5.5 at time of
 writing). No `--fallback-model`: if Opus is unavailable the job fails and the PR goes `needs-human` rather than
@@ -182,10 +199,13 @@ tool added → **minor**; otherwise → **patch**.
 
 **`verdict`** (App token):
 
-- Gates passed **and** `verdict == safe` **and** every evidence item has a disposition → post the summary as a
-  PR comment, apply `release:<bump>`, enable auto-merge (merge commit).
-- Anything else — including a Claude job error, timeout, or schema-invalid output → label `needs-human`, post the
-  concerns, request the owner's review. **Fail closed.**
+- Gates passed **and** `verdict == safe` **and** `concerns` is empty **and** every evidence item has a
+  disposition → post the summary as a PR comment, apply `release:<bump>`, enable auto-merge (merge commit).
+- Anything else — including a non-empty `concerns` list (even with `verdict == safe`), a Claude job error,
+  timeout, or schema-invalid output → label `needs-human`, post the concerns, request the owner's review.
+  **Fail closed.** `release:<bump>` is still applied on this path whenever a review exists, so a human merge
+  inherits the reviewer's bump.
+- An empty diff (no changes outside the fork-owned paths) yields `release:none`.
 - `needs-human` is **sticky**: while the label is on the PR, `verdict` never auto-merges. The owner removes it and
   re-runs the workflow to re-arm automated review.
 
@@ -193,30 +213,40 @@ tool added → **minor**; otherwise → **patch**.
 
 The fork has **its own semver line starting at `1.0.0`**, independent of upstream's `0.x` (upstream's numbers are
 unpublished and would collide with its future releases). The bump comes from the merged PR's `release:*` label:
-set by `verdict` for sync PRs, by the author for our patch PRs (`release:patch` default; `release:none` for
-workflow/docs-only changes). When several PRs merged since the last fork release tag (e.g. a queued release run
-was cancelled), the bump is the maximum over all of them.
+set by `verdict` for sync PRs, by the author for our patch PRs (`release:none` for workflow/docs-only changes).
+A PR with no `release:*` label does not release. When several PRs merged since the last fork release tag (F6)
+(e.g. a queued release run was cancelled), the bump is the maximum over all of them.
 
 ### F6. Release
 
 No workflow uses any cache (`actions/cache`, or setup-node's implicit `package-manager-cache`, which is disabled
 explicitly): `exec` runs PR code with the base branch's cache scope, so a cache would let it poison later jobs.
 
-`release.yml`, on push to `main`, in two jobs so code never runs where publish credentials exist:
+A **fork release tag** is an annotated `vX.Y.Z` tag whose subject is `upstream-commit: <40-hex sha>`; any other
+`v*` tag — notably the inherited upstream tags `v0.2.0`, `v0.3.0`, `v0.3.1` — is ignored.
+
+`release.yml`, on push to `main` (or `workflow_dispatch`), in two jobs so code never runs where publish credentials
+exist:
 
 **`build`** (`contents: read` only):
 
-1. Resolve the PR for the pushed commit; read its `release:*` label. None or `release:none` → stop.
-2. Next version = latest `v*` tag + bump.
-3. `npm ci --ignore-scripts` → build → test.
-4. Stamp `package.json` **in the workspace only** (never committed, so it never conflicts with upstream's version
+1. Release only from the tip of `main`: a re-run of an older commit stops. If `HEAD` already carries a fork
+   release tag, re-run that version (idempotent).
+2. Bump: walk the first-parent commits since the latest fork release tag, resolve each one's merged PR, and take
+   the maximum `release:*` label (F5); with no fork release tag yet, only the pushed commit's PR counts. No label
+   on any of them, or `release:none` → stop. A `workflow_dispatch` `bump` input overrides the labels.
+3. Next version = latest fork release tag + bump (`1.0.0` if there is none).
+4. `npm ci --ignore-scripts` → build → test.
+5. Stamp `package.json` **in the workspace only** (never committed, so it never conflicts with upstream's version
    bumps): `version`, and `upstream: { repository, commit }` where `commit = git merge-base HEAD upstream/main`.
-5. `npm pack` → upload the tarball as an artifact.
+6. `npm pack` → upload the tarball as an artifact.
 
-**`publish`** (`id-token: write`, `contents: write`; runs no repo code):
+**`publish`** (`id-token: write`, `contents: write`; runs no upstream code — only fork tooling from a sparse
+checkout of `.github/fork/`):
 
-1. `npm publish <tarball> --provenance --access public --ignore-scripts` via **npm trusted publishing** (OIDC; no
-   stored npm token; pinned npm CLI ≥ 11.5.1). If the version already exists on npm (re-run), skip publishing.
+1. Fail unless the tarball's `version` equals the planned version. Then `npm publish <tarball> --provenance
+   --access public --ignore-scripts` via **npm trusted publishing** (OIDC; no stored npm token; pinned npm
+   CLI ≥ 11.5.1). If the version already exists on npm (re-run), skip publishing.
 2. Only after a successful publish: create the **annotated** tag `vX.Y.Z` (message `upstream-commit: <sha>`, which
    the next release reads to build its compare link) and a GitHub Release with Claude's summary and dispositions,
    the model that reviewed, the upstream compare link (`<prev upstream sha>...<new>`), and the first-parent
@@ -272,9 +302,10 @@ Order matters: the bundler PR depends on `1.0.0` existing on npm.
 5. **Placeholder publish by hand** (owner): npm trusted publishing can only be attached to a package that already
    exists, and provenance can only be generated in CI. So the owner publishes a throwaway
    `0.0.1-bootstrap.0` locally (`npm publish --access public --tag bootstrap`), configures the trusted publisher
-   (repo `thedebuggedlife/wanderlog-mcp`, workflow `release.yml`), then deprecates the placeholder.
+   (repo `thedebuggedlife/wanderlog-mcp`, workflow `release.yml`), then deprecates the placeholder. npm may also
+   show a `0.0.0-stage` placeholder version alongside it.
 6. **First real release from CI:** `release.yml` also accepts `workflow_dispatch` with a `bump` input; dispatching
-   it with no prior `v*` tag publishes **`1.0.0` with provenance**.
+   it with no prior fork release tag publishes **`1.0.0` with provenance**.
 7. **Bundler onboarding PR** (F7).
 
 ---
