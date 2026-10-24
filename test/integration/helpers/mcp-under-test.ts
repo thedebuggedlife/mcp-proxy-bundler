@@ -2,16 +2,17 @@
 // integration wrapper / CI matrix sets). Keeps the test bodies MCP-agnostic so
 // the matrix proves every image with one spec (Phase 15: config-only onboarding).
 
+import { TEST_DUMMY_ENV } from '../../../scripts/lib/test-dummy-env.ts'
+
 export interface McpUnderTest {
   name: string
   image: string
   apiKeyEnvs: string[]
-  // Literal value for every apiKeyEnv when the MCP rejects the generic placeholder.
-  apiKeyValue?: string
-  extraEnv?: Record<string, string>
   // A resilient subset of stable tool names (asserted as a contained-subset, not
   // exact equality, so upstream tool additions don't break the test).
   expectedTools: string[]
+  // TEST_DUMMY_ENV[name]: per-env dummy values for shape-validated credentials, plus any extra env.
+  dummyEnv?: Record<string, string>
 }
 
 const REGISTRY = 'ghcr.io/thedebuggedlife'
@@ -35,6 +36,17 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
       'get-routines',
       'get-exercise-templates',
       'get-user-info',
+    ],
+  },
+  immich: {
+    name: 'immich',
+    apiKeyEnvs: ['IMMICH_BASE_URL', 'IMMICH_API_KEY'],
+    dummyEnv: TEST_DUMMY_ENV.immich,
+    expectedTools: [
+      'immich_search_smart',
+      'immich_search_metadata',
+      'immich_people_assets',
+      'immich_assets_download_thumbnail',
     ],
   },
   pagerduty: {
@@ -62,12 +74,7 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
   wanderlog: {
     name: 'wanderlog',
     apiKeyEnvs: ['WANDERLOG_COOKIE'],
-    // The MCP refuses to start unless the cookie looks like connect.sid.
-    apiKeyValue: 's%3Aplaceholder',
-    extraEnv: {
-      WANDERLOG_BASE_URL: 'http://127.0.0.1:9',
-      WANDERLOG_WS_BASE_URL: 'ws://127.0.0.1:9',
-    },
+    dummyEnv: TEST_DUMMY_ENV.wanderlog,
     expectedTools: [
       'wanderlog_list_trips',
       'wanderlog_get_trip',

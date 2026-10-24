@@ -269,6 +269,7 @@ Commits on the branches use non-release types; the PR titles above are the squas
 - **A Python runtime type.** Eight of the eleven Immich servers found were Python; the seam (`type` union member + Dockerfile target + metadata row) is shaped for it.
 - **Getting media bytes onto the agent's disk through MCP itself** (risk 3), with no URL the sandbox must fetch. First establish what the MCP clients in play (Claude Code, Cowork) let an agent persist from a tool result; if a workable shape exists, contribute it to `barryw/ImmichMCP` rather than carrying a fork.
 - **An automated large-payload relay test** for the proxy that needs no MCP backend.
+- **Digest-only bumps in release notes.** Renovate's digest commit subject ends `… digest to <shortSha>`, so `deriveChange` reports the short SHA as the new version for every kind (`proxy`, `node`, `dotnet`, `mcp`), rendering a bogus heading and link; the "same version, new digest → patch" line is unreachable in practice. Pre-existing; fix once for all kinds by detecting the digest subject and taking the version from the pinned tag.
 
 ---
 

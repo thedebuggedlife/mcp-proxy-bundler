@@ -273,11 +273,13 @@ build + Tier-1 + Tier-2; minor/patch auto-merge (existing `automerge` rule) and 
 
 - `renovate.json` — `packageRule` mapping `mcps/wanderlog/package.json` → `semanticCommitScope: "wanderlog"`.
 - **Harness: per-MCP placeholder key.** `wanderlog-mcp` refuses to start unless the cookie looks like
-  `connect.sid` (`s%3A…`), so the shared `dummy` / generated `MCP_API_KEY` values break it. `McpUnderTest` gains
-  optional `apiKeyValue` (wanderlog: `s%3Aplaceholder`) and optional `extraEnv` (wanderlog: `WANDERLOG_BASE_URL`
-  and `WANDERLOG_WS_BASE_URL` → `127.0.0.1`, keeping the tests hermetic). Tier-1 passes them to `stdio-client.ts`
-  (which already accepts `apiKeyValue`); Tier-2's `scripts/gen-compose-override.ts` reads the same registry entry,
-  so there is one source for the values. Other MCPs are unchanged.
+  `connect.sid` (`s%3A…`), so the shared `dummy` / generated `MCP_API_KEY` values break it. This reuses `main`'s
+  per-MCP `TEST_DUMMY_ENV` (`scripts/lib/test-dummy-env.ts`, added for immich), extended so an entry that is not
+  one of the MCP's `apiKeyEnvs` is passed as extra env: wanderlog sets `WANDERLOG_COOKIE: s%3Aplaceholder` plus
+  `WANDERLOG_BASE_URL` / `WANDERLOG_WS_BASE_URL` → `127.0.0.1:9`, keeping the tests hermetic. Tier-1 passes the
+  registry's `dummyEnv: TEST_DUMMY_ENV.wanderlog` to `stdio-client.ts` as `envOverrides`; Tier-2's
+  `scripts/gen-compose-override.ts` reads `TEST_DUMMY_ENV` through the pure `renderComposeOverride`, so there is one
+  source for the values. Other MCPs' overrides are byte-for-byte unchanged.
 - `expectedTools`: `wanderlog_list_trips`, `wanderlog_get_trip`, `wanderlog_create_trip`, `wanderlog_add_place`.
 - `test/unit/ci-matrix.test.ts` — add `wanderlog` to the inventory.
 - README — Available MCPs row (npm link to our package; source link to the fork, noting it is a reviewed fork of

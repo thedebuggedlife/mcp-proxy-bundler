@@ -62,4 +62,45 @@ describe('loadMcpConfig', () => {
       /Invalid mcp\.yaml for "unknown-type"[\s\S]*type/,
     )
   })
+
+  it('loads and normalizes a valid dotnet config', () => {
+    expect(loadMcpConfig('dotnet-valid', fixturesDir)).toEqual({
+      name: 'dotnet-valid',
+      type: 'dotnet',
+      displayName: 'Dotnet Valid',
+      mcpImage: 'ghcr.io/example/valid-mcp',
+      mcpRepo: 'example/valid-mcp',
+      mcpAssembly: 'ValidMcp.dll',
+      mcpArgs: ['--stdio'],
+      upstreamRef:
+        'ghcr.io/example/valid-mcp:v1.2.3@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      upstreamVersion: '1.2.3',
+      apiKeyEnvs: ['VALID_BASE_URL', 'VALID_API_KEY'],
+      telemetryHosts: [],
+    })
+  })
+
+  it('throws when upstream.Dockerfile names a different image than mcpImage', () => {
+    expect(() => loadMcpConfig('dotnet-image-mismatch', fixturesDir)).toThrowError(
+      /mcpImage "ghcr\.io\/example\/valid-mcp".*does not match.*some-other-image/,
+    )
+  })
+
+  it('throws when the upstream pin has no digest', () => {
+    expect(() => loadMcpConfig('dotnet-missing-digest', fixturesDir)).toThrowError(
+      /upstream\.Dockerfile for "dotnet-missing-digest" must be exactly one line: FROM <image>:<tag>@sha256:<digest>/,
+    )
+  })
+
+  it('rejects mcpArgs that are not safe to interpolate into the launcher', () => {
+    expect(() => loadMcpConfig('dotnet-unsafe-args', fixturesDir)).toThrowError(
+      /Invalid mcp\.yaml for "dotnet-unsafe-args"[\s\S]*mcpArgs/,
+    )
+  })
+
+  it('requires mcpRepo for a dotnet MCP', () => {
+    expect(() => loadMcpConfig('dotnet-missing-repo', fixturesDir)).toThrowError(
+      /Invalid mcp\.yaml for "dotnet-missing-repo"[\s\S]*mcpRepo/,
+    )
+  })
 })

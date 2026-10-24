@@ -13,8 +13,10 @@ body:
   - type: input
     id: package
     attributes:
-      label: npm package
-      description: The published npm package that provides the MCP server.
+      label: npm package or container image
+      description: >-
+        The published npm package, or (for a .NET/container-image MCP) the container image, that provides
+        the MCP server.
       placeholder: "@scope/some-mcp  or  some-mcp"
     validations:
       required: true
@@ -43,7 +45,10 @@ body:
     id: bin
     attributes:
       label: stdio bin name
-      description: The command from the package's `bin` field (becomes `mcpBin`). Leave blank if unsure.
+      description: >-
+        The command from the package's `bin` field (becomes `mcpBin`); for a container-image (.NET) MCP,
+        the assembly and the arguments that select stdio (becomes `mcpAssembly` and `mcpArgs`). Leave blank
+        if unsure.
       placeholder: "some-mcp"
   - type: input
     id: apikeyenv

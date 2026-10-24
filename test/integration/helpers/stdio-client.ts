@@ -5,7 +5,8 @@ export interface BakedMcpOptions {
   image: string
   apiKeyEnvs: string[]
   apiKeyValue?: string
-  extraEnv?: Record<string, string>
+  // Replaces an apiKeyEnv's value; entries not in apiKeyEnvs are passed as extra env.
+  envOverrides?: Record<string, string>
 }
 
 export interface BakedMcpClient {
@@ -22,12 +23,15 @@ export async function connectBakedMcp(
 ): Promise<BakedMcpClient> {
   const apiKeyValue = opts.apiKeyValue ?? 'dummy'
 
+  const overrides = opts.envOverrides ?? {}
   const envArgs = [
-    ...opts.apiKeyEnvs.flatMap((env) => ['-e', `${env}=${apiKeyValue}`]),
-    ...Object.entries(opts.extraEnv ?? {}).flatMap(([name, value]) => [
+    ...opts.apiKeyEnvs.flatMap((env) => [
       '-e',
-      `${name}=${value}`,
+      `${env}=${overrides[env] ?? apiKeyValue}`,
     ]),
+    ...Object.entries(overrides)
+      .filter(([name]) => !opts.apiKeyEnvs.includes(name))
+      .flatMap(([name, value]) => ['-e', `${name}=${value}`]),
   ]
 
   const args = [

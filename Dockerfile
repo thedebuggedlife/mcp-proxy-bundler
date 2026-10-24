@@ -1,6 +1,11 @@
+ARG MCP_IMAGE=scratch
+
 # Literal, digest-pinned upstreams: single-sourced for Renovate and the build scripts' version parse.
 FROM ghcr.io/sigbit/mcp-auth-proxy:2.10.2@sha256:f92e0ccd22b2a7585bccedc366a3c872bbfa3500c7fa5e7443b40962bf248e8d AS proxy
-FROM node:26.12.0-slim@sha256:0d1e33586362bb9e608c4e751e7a9e7edb55c9ac11461ed5666af696cc461dd4 AS node-upstream
+FROM node:26.12.1-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec AS node-upstream
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12-noble@sha256:222759b391a1aaf241166672c8f99b2d4ada452e7b5319f3c6e8f265a37b5ad4 AS dotnet-upstream
+# Artifact carrier for image-distributed MCPs; the real pin lives in mcps/<name>/upstream.Dockerfile.
+FROM ${MCP_IMAGE} AS mcp-image
 
 # Runtime-neutral payload, defined once for every runtime target.
 FROM scratch AS common
@@ -23,6 +28,27 @@ RUN apt-get update \
 WORKDIR /app
 COPY ${MCP_DIR}/package.json ${MCP_DIR}/package-lock.json ./
 RUN npm ci --omit=dev
+
+COPY --from=common / /
+RUN test -n "$MCP_LAUNCH" \
+ && printf '#!/bin/sh\nexec %s "$@"\n' "$MCP_LAUNCH" > /app/mcp-launch \
+ && chmod +x /app/mcp-launch
+USER 1000:1000
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+FROM dotnet-upstream AS dotnet
+ARG MCP_LAUNCH
+
+# The schema shim runs on Node, whose binary needs libatomic; the ASP.NET image does not ship it.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libatomic1 \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=node-upstream /usr/local/bin/node /usr/local/bin/node
+COPY --from=mcp-image /app /app/mcp
+# The .NET host resolves appsettings.json from the working directory.
+WORKDIR /app/mcp
+ENV DOTNET_EnableDiagnostics=0
 
 COPY --from=common / /
 RUN test -n "$MCP_LAUNCH" \

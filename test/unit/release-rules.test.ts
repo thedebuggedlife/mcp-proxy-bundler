@@ -4,9 +4,13 @@ import { releaseRulesFor } from '../../scripts/lib/release-rules.ts'
 
 // Behavioral check: run the REAL commit-analyzer over a single crafted commit and
 // return the release type it computes for `mcpName`'s per-image release run.
-async function releaseTypeFor(mcpName: string, message: string): Promise<string | null> {
+async function releaseTypeFor(
+  mcpName: string,
+  message: string,
+  type: 'node' | 'dotnet' = 'node',
+): Promise<string | null> {
   return analyzeCommits(
-    { preset: 'angular', releaseRules: releaseRulesFor(mcpName) },
+    { preset: 'angular', releaseRules: releaseRulesFor(mcpName, type) },
     { commits: [{ hash: 'deadbeef', message }], logger: { log() {} }, cwd: process.cwd() },
   ) as Promise<string | null>
 }
@@ -49,5 +53,32 @@ describe('release rules — parameterized by MCP name', () => {
     expect(await releaseTypeFor('todoist', 'feat(todoist): add')).toBe('minor')
     expect(await releaseTypeFor('todoist', 'fix(hevy): update')).toBeNull()
     expect(await releaseTypeFor('todoist', 'fix(image): tweak')).toBe('patch')
+  })
+})
+
+describe('release rules — dotnet scope', () => {
+  test('a dotnet base bump releases a dotnet image', async () => {
+    expect(await releaseTypeFor('immich', 'fix(dotnet): update aspnet digest', 'dotnet')).toBe('patch')
+    expect(await releaseTypeFor('immich', 'feat(dotnet): bump base', 'dotnet')).toBe('minor')
+    expect(
+      await releaseTypeFor('immich', 'feat(dotnet): bump\n\nBREAKING CHANGE: x', 'dotnet'),
+    ).toBe('major')
+  })
+
+  test('a dotnet base bump does NOT release a node image', async () => {
+    expect(await releaseTypeFor('hevy', 'fix(dotnet): update aspnet digest')).toBeNull()
+    expect(await releaseTypeFor('hevy', 'feat(dotnet): bump\n\nBREAKING CHANGE: x')).toBeNull()
+  })
+
+  test('a node base bump releases both (every image carries Node for the shim)', async () => {
+    expect(await releaseTypeFor('hevy', 'fix(node): update digest')).toBe('patch')
+    expect(await releaseTypeFor('immich', 'fix(node): update digest', 'dotnet')).toBe('patch')
+  })
+
+  test('a dotnet image still releases on its own scope and on proxy/image', async () => {
+    expect(await releaseTypeFor('immich', 'feat(immich): update upstream image', 'dotnet')).toBe('minor')
+    expect(await releaseTypeFor('immich', 'fix(proxy): pin digests', 'dotnet')).toBe('patch')
+    expect(await releaseTypeFor('immich', 'fix(image): tweak entrypoint', 'dotnet')).toBe('patch')
+    expect(await releaseTypeFor('immich', 'fix(hevy): update', 'dotnet')).toBeNull()
   })
 })

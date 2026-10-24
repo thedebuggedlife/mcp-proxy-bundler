@@ -3,8 +3,7 @@
 export interface ComposeOverrideInput {
   apiKeyEnvs: string[]
   telemetryHosts: string[]
-  apiKeyValue?: string
-  extraEnv?: Record<string, string>
+  dummyEnv?: Record<string, string>
 }
 
 const literal = (value: string): string => `'${value.replace(/'/g, "''").replace(/\$/g, '$$$$')}'`
@@ -12,10 +11,15 @@ const literal = (value: string): string => `'${value.replace(/'/g, "''").replace
 export function renderComposeOverride(i: ComposeOverrideInput): string {
   const lines: string[] = ['services:', '  image-under-test:']
 
-  const keyValue = i.apiKeyValue === undefined ? "'${MCP_API_KEY}'" : literal(i.apiKeyValue)
+  const dummyEnv = i.dummyEnv ?? {}
   const env: [string, string][] = [
-    ...i.apiKeyEnvs.map((name): [string, string] => [name, keyValue]),
-    ...Object.entries(i.extraEnv ?? {}).map(([name, value]): [string, string] => [name, literal(value)]),
+    ...i.apiKeyEnvs.map((name): [string, string] => [
+      name,
+      Object.hasOwn(dummyEnv, name) ? literal(dummyEnv[name]) : "'${MCP_API_KEY}'",
+    ]),
+    ...Object.entries(dummyEnv)
+      .filter(([name]) => !i.apiKeyEnvs.includes(name))
+      .map(([name, value]): [string, string] => [name, literal(value)]),
   ]
   if (env.length > 0) {
     lines.push('    environment:')

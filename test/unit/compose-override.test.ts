@@ -29,16 +29,36 @@ describe('renderComposeOverride', () => {
     const out = renderComposeOverride({
       apiKeyEnvs: ['WANDERLOG_COOKIE'],
       telemetryHosts: [],
-      apiKeyValue: 's%3Aplaceholder',
-      extraEnv: { WANDERLOG_BASE_URL: 'http://127.0.0.1:9' },
+      dummyEnv: { WANDERLOG_COOKIE: 's%3Aplaceholder', WANDERLOG_BASE_URL: 'http://127.0.0.1:9' },
     })
     expect(out).toContain("      WANDERLOG_COOKIE: 's%3Aplaceholder'\n")
     expect(out).toContain("      WANDERLOG_BASE_URL: 'http://127.0.0.1:9'\n")
     expect(out).not.toContain('MCP_API_KEY')
   })
 
+  it('overrides only the apiKeyEnvs that have a dummy value, in apiKeyEnvs order before extra env', () => {
+    expect(
+      renderComposeOverride({
+        apiKeyEnvs: ['IMMICH_BASE_URL', 'IMMICH_API_KEY'],
+        telemetryHosts: [],
+        dummyEnv: { EXTRA: 'x', IMMICH_BASE_URL: 'http://immich.invalid' },
+      }),
+    ).toBe(
+      [
+        'services:',
+        '  image-under-test:',
+        '    environment:',
+        "      IMMICH_BASE_URL: 'http://immich.invalid'",
+        "      IMMICH_API_KEY: '${MCP_API_KEY}'",
+        "      EXTRA: 'x'",
+        '    extra_hosts: []',
+        '',
+      ].join('\n'),
+    )
+  })
+
   it('escapes quotes and compose interpolation in literal values', () => {
-    const out = renderComposeOverride({ apiKeyEnvs: ['K'], telemetryHosts: [], apiKeyValue: "it's $HOME" })
+    const out = renderComposeOverride({ apiKeyEnvs: ['K'], telemetryHosts: [], dummyEnv: { K: "it's $HOME" } })
     expect(out).toContain("      K: 'it''s $$HOME'\n")
   })
 })
