@@ -1,3 +1,4 @@
+import { renderComposeOverride } from './lib/compose-override.ts'
 import { loadMcpConfig } from './lib/mcp-config.ts'
 import { TEST_DUMMY_ENV } from './lib/test-dummy-env.ts'
 
@@ -6,7 +7,8 @@ import { TEST_DUMMY_ENV } from './lib/test-dummy-env.ts'
 // MCP-agnostic (Phase 15: config-only onboarding):
 //   - the MCP's API-key env vars (named per mcp.yaml runtime.apiKeyEnvs) each set
 //     to the ephemeral ${MCP_API_KEY} (compose interpolates it from --env-file),
-//     or the per-MCP TEST_DUMMY_ENV override where one exists;
+//     or the per-MCP TEST_DUMMY_ENV override where one exists, plus any extra
+//     env TEST_DUMMY_ENV declares;
 //   - extra_hosts black-holing each runtime.telemetryHosts entry to 127.0.0.1
 //     and ::1 (D10 / Finding 11), keeping the test hermetic.
 
@@ -18,29 +20,13 @@ function main(): void {
   }
 
   const config = loadMcpConfig(name)
-  const lines: string[] = ['services:', '  image-under-test:']
-
-  // The stdio child reads its API key(s) from the MCP-specific env var name(s).
-  if (config.apiKeyEnvs.length > 0) {
-    lines.push('    environment:')
-    const dummyEnv = TEST_DUMMY_ENV[name] ?? {}
-    for (const env of config.apiKeyEnvs) {
-      const value = dummyEnv[env] ?? '${MCP_API_KEY}'
-      lines.push(`      ${env}: '${value}'`)
-    }
-  }
-
-  if (config.telemetryHosts.length === 0) {
-    lines.push('    extra_hosts: []')
-  } else {
-    lines.push('    extra_hosts:')
-    for (const host of config.telemetryHosts) {
-      lines.push(`      - "${host}:127.0.0.1"`)
-      lines.push(`      - "${host}:::1"`)
-    }
-  }
-
-  process.stdout.write(lines.join('\n') + '\n')
+  process.stdout.write(
+    renderComposeOverride({
+      apiKeyEnvs: config.apiKeyEnvs,
+      telemetryHosts: config.telemetryHosts,
+      dummyEnv: TEST_DUMMY_ENV[name],
+    }),
+  )
 }
 
 main()

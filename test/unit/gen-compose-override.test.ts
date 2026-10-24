@@ -25,4 +25,12 @@ describe('gen-compose-override', () => {
     expect(output).toContain("      HEVY_API_KEY: '${MCP_API_KEY}'\n")
     expect(output).not.toContain('immich.invalid')
   })
+
+  it('emits the literal cookie placeholder and extra env for wanderlog', () => {
+    const output = genComposeOverride('wanderlog')
+    expect(output).toContain("      WANDERLOG_COOKIE: 's%3Aplaceholder'\n")
+    expect(output).toContain("      WANDERLOG_BASE_URL: 'http://127.0.0.1:9'\n")
+    expect(output).toContain("      WANDERLOG_WS_BASE_URL: 'ws://127.0.0.1:9'\n")
+    expect(output).not.toContain('MCP_API_KEY')
+  })
 })

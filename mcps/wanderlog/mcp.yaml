@@ -1,0 +1,7 @@
+name: wanderlog
+displayName: "Wanderlog MCP"
+mcpPackage: "@thedebuggedlife/wanderlog-mcp"
+mcpBin: wanderlog-mcp
+runtime:
+  apiKeyEnvs:
+    - WANDERLOG_COOKIE

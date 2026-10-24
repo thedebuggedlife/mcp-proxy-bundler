@@ -30,6 +30,7 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 | PagerDuty | `ghcr.io/thedebuggedlife/mcp-pagerduty` | [`@vineethnkrishnan/pagerduty-mcp`](https://www.npmjs.com/package/@vineethnkrishnan/pagerduty-mcp) | [vineethkrishnan/mcp-pool](https://github.com/vineethkrishnan/mcp-pool/tree/main/packages/pagerduty) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
 | Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
+| Wanderlog | `ghcr.io/thedebuggedlife/mcp-wanderlog` | [`@thedebuggedlife/wanderlog-mcp`](https://www.npmjs.com/package/@thedebuggedlife/wanderlog-mcp) | [thedebuggedlife/wanderlog-mcp](https://github.com/thedebuggedlife/wanderlog-mcp) — reviewed fork of [shaikhspeare/wanderlog-mcp](https://github.com/shaikhspeare/wanderlog-mcp) |
 
 > **Immich.** Requires `IMMICH_BASE_URL` (your Immich server's URL, as reachable from the container) and
 > `IMMICH_API_KEY`. By default the server returns URLs; set `DOWNLOAD_MODE=base64` in your deployment to
@@ -204,8 +205,9 @@ it directly instead of `npm ci`-installing it. `mcps/immich` is the reference ex
      are deny-by-default: without this, bumps land under a non-release scope and **publish nothing**
      (enforced by `test/unit/renovate-rules.test.ts`).
    - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`apiKeyEnvs` and a
-     small **stable** `expectedTools` subset; set `dummyEnv` for any env var whose shape the server
-     validates, e.g. a URL), or the integration suite throws `Unknown MCP_NAME`.
+     small **stable** `expectedTools` subset; for any env var whose shape the server validates, e.g. a
+     URL, or extra env it needs under test, add it to `scripts/lib/test-dummy-env.ts` and set
+     `dummyEnv: TEST_DUMMY_ENV.<name>`), or the integration suite throws `Unknown MCP_NAME`.
    - `test/unit/ci-matrix.test.ts` — add `<name>` to the expected discovered-MCP inventory (a deliberate
      tripwire; `discoverMcps()` is sorted, so keep it alphabetical).
 5. **Add a row** to the [Available MCPs](#available-mcps) table above.
@@ -299,6 +301,12 @@ not re-authenticate across an update.
 explicitly to pin the host your API token is sent to. Of its two `apiKeyEnvs`, only
 `PAGERDUTY_API_KEY` is required; `PAGERDUTY_USER_EMAIL` is just the author of the incident write
 tools (acknowledge/resolve/reassign/note), so a read-only deployment can leave it a placeholder.
+
+`mcp-wanderlog` authenticates with `WANDERLOG_COOKIE`, the `connect.sid` session cookie from a logged-in
+wanderlog.com browser session (Wanderlog has no public API). Set it to the URL-encoded value exactly as the
+browser stores it (starting `s%3A`). It is valid for about a year and grants full
+access to the account — treat it as a password. It optionally reads `WANDERLOG_USER_AGENT` and
+`WANDERLOG_DEFAULT_CURRENCY`.
 
 The proxy is the **sole gate**: `GET /mcp` unauthenticated returns `401` (not a portal redirect). It speaks
 OAuth 2.1 authorization-code + PKCE (S256) with Dynamic Client Registration toward downstream MCP clients.

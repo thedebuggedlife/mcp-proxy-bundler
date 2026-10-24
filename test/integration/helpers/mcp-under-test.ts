@@ -11,7 +11,7 @@ export interface McpUnderTest {
   // A resilient subset of stable tool names (asserted as a contained-subset, not
   // exact equality, so upstream tool additions don't break the test).
   expectedTools: string[]
-  // Per-env dummy values for MCPs that validate a credential's shape (e.g. a URL).
+  // TEST_DUMMY_ENV[name]: per-env dummy values for shape-validated credentials, plus any extra env.
   dummyEnv?: Record<string, string>
 }
 
@@ -71,11 +71,26 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
     apiKeyEnvs: ['TRELLO_API_KEY', 'TRELLO_TOKEN'],
     expectedTools: ['get_lists', 'get_cards_by_list_id', 'add_card_to_list'],
   },
+  wanderlog: {
+    name: 'wanderlog',
+    apiKeyEnvs: ['WANDERLOG_COOKIE'],
+    dummyEnv: TEST_DUMMY_ENV.wanderlog,
+    expectedTools: [
+      'wanderlog_list_trips',
+      'wanderlog_get_trip',
+      'wanderlog_create_trip',
+      'wanderlog_add_place',
+    ],
+  },
+}
+
+export function mcpTestSpec(name: string): Omit<McpUnderTest, 'image'> | undefined {
+  return Object.prototype.hasOwnProperty.call(MCPS, name) ? MCPS[name] : undefined
 }
 
 export function mcpUnderTest(): McpUnderTest {
   const name = process.env.MCP_NAME ?? 'hevy'
-  const spec = MCPS[name]
+  const spec = mcpTestSpec(name)
   if (!spec) {
     throw new Error(
       `Unknown MCP_NAME "${name}". Known: ${Object.keys(MCPS).join(', ')}`,

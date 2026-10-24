@@ -68,6 +68,12 @@
       "semanticCommitScope": "trello"
     },
     {
+      "description": "Wanderlog MCP npm package (our reviewed fork) — scope 'wanderlog' (versions only the wanderlog image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/wanderlog/package.json"],
+      "semanticCommitScope": "wanderlog"
+    },
+    {
       "description": "Immich MCP upstream image pin — scope 'immich' (versions only the immich image). Per-MCP rules must stay after the shared-scope rules so their scope wins the merge.",
       "matchManagers": ["dockerfile"],
       "matchFileNames": ["mcps/immich/upstream.Dockerfile"],
