@@ -2,6 +2,8 @@
 // integration wrapper / CI matrix sets). Keeps the test bodies MCP-agnostic so
 // the matrix proves every image with one spec (Phase 15: config-only onboarding).
 
+import { TEST_DUMMY_ENV } from '../../../scripts/lib/test-dummy-env.ts'
+
 export interface McpUnderTest {
   name: string
   image: string
@@ -9,6 +11,8 @@ export interface McpUnderTest {
   // A resilient subset of stable tool names (asserted as a contained-subset, not
   // exact equality, so upstream tool additions don't break the test).
   expectedTools: string[]
+  // Per-env dummy values for MCPs that validate a credential's shape (e.g. a URL).
+  dummyEnv?: Record<string, string>
 }
 
 const REGISTRY = 'ghcr.io/thedebuggedlife'
@@ -32,6 +36,17 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
       'get-routines',
       'get-exercise-templates',
       'get-user-info',
+    ],
+  },
+  immich: {
+    name: 'immich',
+    apiKeyEnvs: ['IMMICH_BASE_URL', 'IMMICH_API_KEY'],
+    dummyEnv: TEST_DUMMY_ENV.immich,
+    expectedTools: [
+      'immich_search_smart',
+      'immich_search_metadata',
+      'immich_people_assets',
+      'immich_assets_download_thumbnail',
     ],
   },
   pagerduty: {

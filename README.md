@@ -14,10 +14,11 @@ An MCP deployed as a one-off custom image (proxy binary on a Node base, spawning
 falls out of any registry-based auto-update pipeline — the single most critical place to leave a
 vulnerability window, since the proxy is the internet-facing gate. This builder generalizes that build:
 
-- The edge proxy and Node base are **digest-pinned** and **auto-bumped** by Renovate.
+- The edge proxy, Node base, and (for `type: dotnet` images) ASP.NET base are **digest-pinned** and
+  **auto-bumped** by Renovate.
 - Every bump is gated by a real CI test suite (build + OAuth e2e against a live Authelia) before publish.
 - Each image carries **honest semver** and OCI labels recording exactly what changed.
-- Adding an MCP is two files plus a lockfile.
+- Adding an MCP is two or three small config files — no Dockerfile or CI changes.
 
 ## Available MCPs
 
@@ -25,12 +26,18 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 |---|---|---|---|
 | Discord | `ghcr.io/thedebuggedlife/mcp-discord` | [`@pasympa/discord-mcp`](https://www.npmjs.com/package/@pasympa/discord-mcp) | [PaSympa/discord-mcp](https://github.com/PaSympa/discord-mcp) |
 | Hevy | `ghcr.io/thedebuggedlife/mcp-hevy` | [`hevy-mcp`](https://www.npmjs.com/package/hevy-mcp) | [chrisdoc/hevy-mcp](https://github.com/chrisdoc/hevy-mcp) |
+| Immich | `ghcr.io/thedebuggedlife/mcp-immich` | [`ghcr.io/barryw/immichmcp`](https://github.com/users/barryw/packages/container/package/immichmcp) (.NET) | [barryw/ImmichMCP](https://github.com/barryw/ImmichMCP) |
 | PagerDuty | `ghcr.io/thedebuggedlife/mcp-pagerduty` | [`@vineethnkrishnan/pagerduty-mcp`](https://www.npmjs.com/package/@vineethnkrishnan/pagerduty-mcp) | [vineethkrishnan/mcp-pool](https://github.com/vineethkrishnan/mcp-pool/tree/main/packages/pagerduty) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
 | Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
 
+> **Immich.** Requires `IMMICH_BASE_URL` (your Immich server's URL, as reachable from the container) and
+> `IMMICH_API_KEY`. By default the server returns URLs; set `DOWNLOAD_MODE=base64` in your deployment to
+> have it return images as MCP image content the model can see instead, with `MAX_INLINE_DOWNLOAD_BYTES`
+> (default 25 MiB) capping the inline size. These are consumer settings and are not baked into the image.
+
 **Want another MCP?** [Open a new-MCP request](https://github.com/thedebuggedlife/mcp-proxy-bundler/issues/new?template=new-mcp.yml)
-with the npm package and, if you know them, its stdio bin and API-key env var. Most stdio MCPs onboard as a
+with the npm package (or container image) and, if you know them, its stdio bin and API-key env var. Most stdio MCPs onboard as a
 [config-only change](#how-to-add-a-new-mcp) — which you're also welcome to send as a PR yourself.
 
 ## How to use (deploy a published image)
@@ -95,12 +102,15 @@ mcp-proxy-bundler/
 │   │   ├── package.json           # { "dependencies": { "hevy-mcp": "<ver>" } }  ← Renovate npm-managed
 │   │   ├── package-lock.json      # deterministic install + digest pinning
 │   │   └── mcp.yaml               # bin, runtime contract, telemetry hosts
+│   ├── immich/
+│   │   ├── mcp.yaml               # image, assembly, args, runtime contract
+│   │   └── upstream.Dockerfile    # FROM <image>:<tag>@<digest>  ← Renovate docker-managed pin
 │   └── todoist/
 │       ├── package.json
 │       ├── package-lock.json
 │       └── mcp.yaml
-├── Dockerfile                     # SHARED, multi-target (--target node); build args MCP_DIR, MCP_LAUNCH
-│                                  #   holds `FROM mcp-auth-proxy:<ver>` + `FROM node:<ver>` ← Renovate docker-managed
+├── Dockerfile                     # SHARED, multi-target (--target node | dotnet); build args MCP_DIR, MCP_LAUNCH, MCP_IMAGE
+│                                  #   holds `FROM mcp-auth-proxy:<ver>` + `FROM node:<ver>` + `FROM mcr.microsoft.com/dotnet/aspnet:<ver>` ← Renovate docker-managed
 ├── entrypoint.sh                  # runtime-neutral: exec mcp-auth-proxy -- … /app/mcp-launch
 ├── scripts/
 │   ├── build.sh                   # build one image from mcps/<name>/ + stamp OCI labels
@@ -120,15 +130,17 @@ mcp-proxy-bundler/
 └── release.config.js              # semantic-release config (scope-routed, per-image)
 ```
 
-The shape keeps Renovate on **native managers** (no custom regex): the MCP package version lives in
-`mcps/<name>/package.json` (npm manager), while the proxy and Node versions live as `FROM` lines in the
-shared `Dockerfile` (docker manager).
+The shape keeps Renovate on **native managers** (no custom regex): a `node` MCP's package version lives in
+`mcps/<name>/package.json` (npm manager), a `dotnet` MCP's pin lives in `mcps/<name>/upstream.Dockerfile`
+(docker manager), and the proxy, Node, and ASP.NET versions live as `FROM` lines in the shared `Dockerfile`
+(docker manager).
 
 ## Architecture
 
 One proxy : one MCP, baked into one image. The clean path bakes `mcp-auth-proxy -- <stdio bin>`: the
-proxy spawns and supervises the stdio child as a single foreground process. The MCP package is installed
-at **build time** (`npm ci`), so the image starts instantly and its version is a real image property.
+proxy spawns and supervises the stdio child as a single foreground process. For a `node` MCP the package is
+installed at **build time** (`npm ci`); for a `dotnet` MCP its `/app` is copied from its digest-pinned
+upstream image instead. Either way the image starts instantly and its version is a real image property.
 
 `mcp-auth-proxy` is a generic OIDC Relying Party that discovers any compliant provider via its
 `/.well-known/openid-configuration`, so the images are **IdP-agnostic** — nothing IdP-specific is baked.
@@ -141,8 +153,12 @@ independent blast radius, a minimal Go-binary edge surface, and per-MCP auth sco
 ## How to add a new MCP
 
 Onboarding is almost entirely config — no Dockerfile, build-script, or CI-workflow change is needed (the
-CI matrix auto-discovers `mcps/*`). Beyond the two `mcps/<name>/` config files you register the MCP in two
-test fixtures and the docs table; the unit and integration suites fail without them.
+CI matrix auto-discovers `mcps/*`). Every MCP registers in the same two test fixtures and the docs table;
+the unit and integration suites fail without them. Which files you create in `mcps/<name>/` depends on
+how the MCP is distributed — as an npm package (the `node` path) or as a container image (the `dotnet`
+path).
+
+### The `node` (npm) path
 
 1. **Create `mcps/<name>/package.json`** pinning the MCP npm package:
    ```json
@@ -155,15 +171,41 @@ test fixtures and the docs table; the unit and integration suites fail without t
    If the package mis-declares a test/eval dependency as a runtime one (so `npm ci --omit=dev` would bake
    it), stub it out with an `overrides` entry in `package.json` rather than letting it bloat the image —
    e.g. `mcps/trello` maps the mis-packaged `mcp-evals` to `npm:empty-npm-package@1.0.0`.
-3. **Create `mcps/<name>/mcp.yaml`** (see the contract below). Use the package's `bin` field to find the
-   **stdio** bin name for `mcpBin`, and the MCP's docs to find the env var(s) it reads for `runtime.apiKeyEnvs`.
-4. **Register `<name>` in Renovate and the two test fixtures** (auto-discovery covers the build matrix, not these):
-   - `renovate.json` — add a `packageRule` mapping `matchFileNames: ["mcps/<name>/package.json"]` to
-     `semanticCommitScope: "<name>"`, so an upstream npm bump commits under scope `<name>` and actually
-     releases that image. Release rules are deny-by-default: without this, bumps land under a non-release
-     scope and **publish nothing** (enforced by `test/unit/renovate-rules.test.ts`).
+3. **Create `mcps/<name>/mcp.yaml`** (see the contract below; `type: node` is the default, so it can be
+   omitted). Use the package's `bin` field to find the **stdio** bin name for `mcpBin`, and the MCP's docs
+   to find the env var(s) it reads for `runtime.apiKeyEnvs`.
+
+### The `dotnet` (upstream image) path
+
+Used when the MCP ships as a container image rather than an npm package — the shared ASP.NET base runs
+it directly instead of `npm ci`-installing it. `mcps/immich` is the reference example.
+
+1. **Create `mcps/<name>/upstream.Dockerfile`** with exactly one line pinning the upstream image:
+   ```
+   FROM <image>:<tag>@sha256:<digest>
+   ```
+   Resolve the digest with `docker buildx imagetools inspect <image>:<tag>`. No `package.json`, no
+   lockfile.
+2. **Create `mcps/<name>/mcp.yaml`** (see the contract below) with `type: dotnet`, `mcpImage` (must equal
+   the image in `upstream.Dockerfile`), `mcpRepo` (GitHub `owner/repo`, used for release notes),
+   `mcpAssembly` (the DLL under `/app` in the upstream image), `mcpArgs` (the flags that select stdio),
+   and `runtime.apiKeyEnvs`.
+3. The upstream image must be a framework-dependent app under `/app` that targets the .NET major of the
+   shared ASP.NET base, and must speak MCP over stdio with all logging on stderr.
+
+### Register and ship (either path)
+
+4. **Register `<name>` in Renovate and the two test fixtures** (auto-discovery covers the build matrix,
+   not these):
+   - `renovate.json` — add a `packageRule` mapping the upstream pin to `semanticCommitScope: "<name>"`, so
+     a bump commits under scope `<name>` and actually releases that image. For a `node` MCP that's
+     `matchFileNames: ["mcps/<name>/package.json"]` (npm manager); for a `dotnet` MCP it's
+     `matchManagers: ["dockerfile"]`, `matchFileNames: ["mcps/<name>/upstream.Dockerfile"]`. Release rules
+     are deny-by-default: without this, bumps land under a non-release scope and **publish nothing**
+     (enforced by `test/unit/renovate-rules.test.ts`).
    - `test/integration/helpers/mcp-under-test.ts` — add an entry keyed by `<name>` (`apiKeyEnvs` and a
-     small **stable** `expectedTools` subset), or the integration suite throws `Unknown MCP_NAME`.
+     small **stable** `expectedTools` subset; set `dummyEnv` for any env var whose shape the server
+     validates, e.g. a URL), or the integration suite throws `Unknown MCP_NAME`.
    - `test/unit/ci-matrix.test.ts` — add `<name>` to the expected discovered-MCP inventory (a deliberate
      tripwire; `discoverMcps()` is sorted, so keep it alphabetical).
 5. **Add a row** to the [Available MCPs](#available-mcps) table above.
@@ -183,11 +225,15 @@ secrets, or UI fields). The schema is validated by `scripts/lib/mcp-config.ts`.
 | Field | Required | Purpose |
 |---|---|---|
 | `name` | yes | Image name → `ghcr.io/thedebuggedlife/mcp-<name>` |
-| `type` | no | MCP runtime. Only `node` today (the default) |
-| `mcpPackage` | yes | npm package name; **must match the `package.json` dependency key** (cross-checked by the loader) |
-| `mcpBin` | yes | The stdio bin to spawn (`node_modules/.bin/<mcpBin>`), baked into `/app/mcp-launch`. Letters, digits and `. _ = : / @ -` only |
+| `type` | no | MCP runtime: `node` (default) or `dotnet` |
+| `mcpPackage` | yes | **`node` only.** npm package name; **must match the `package.json` dependency key** (cross-checked by the loader) |
+| `mcpBin` | yes | **`node` only.** The stdio bin to spawn (`node_modules/.bin/<mcpBin>`), baked into `/app/mcp-launch`. Letters, digits and `. _ = : / @ -` only |
+| `nodeVersion` | no | **`node` only.** Per-MCP Node base override. **Schema-accepted but not yet wired into the build** — `build.sh` errors clearly if it differs from the shared base, rather than silently ignoring it. |
+| `mcpImage` | yes | **`dotnet` only.** Upstream container image, no tag or digest; must equal the image pinned in `mcps/<name>/upstream.Dockerfile` |
+| `mcpRepo` | yes | **`dotnet` only.** Upstream GitHub `owner/repo`, used for release notes |
+| `mcpAssembly` | yes | **`dotnet` only.** The DLL under `/app` in the upstream image, baked into `/app/mcp-launch`. Letters, digits and `. _ = : / @ -` only |
+| `mcpArgs` | no | **`dotnet` only.** The flags that select stdio mode, e.g. `["--stdio"]`. Each item is letters, digits and `. _ = : / @ -` only |
 | `displayName` | no | Human label (defaults to `name`) |
-| `nodeVersion` | no | Per-MCP Node base override. **Schema-accepted but not yet wired into the build** — `build.sh` errors clearly if it differs from the shared base, rather than silently ignoring it. |
 | `runtime.apiKeyEnvs` | no | List of env vars the MCP reads at runtime (one or more credentials) — supplied by the consumer, **not baked** |
 | `runtime.telemetryHosts` | no | Hostnames the consumer should black-hole via `extra_hosts` (telemetry egress control) |
 
@@ -203,6 +249,22 @@ runtime:
     - HEVY_API_KEY
   telemetryHosts:
     - o4508975499575296.ingest.de.sentry.io
+```
+
+Example, `dotnet` path (`mcps/immich/mcp.yaml`):
+
+```yaml
+name: immich
+displayName: "Immich MCP"
+type: dotnet
+mcpImage: ghcr.io/barryw/immichmcp
+mcpRepo: barryw/ImmichMCP
+mcpAssembly: ImmichMCP.dll
+mcpArgs: ["--stdio"]
+runtime:
+  apiKeyEnvs:
+    - IMMICH_BASE_URL
+    - IMMICH_API_KEY
 ```
 
 MCPs that need more than one credential list them all under `apiKeyEnvs` (the consumer supplies each at
@@ -250,8 +312,9 @@ exactly what changed:
 |---|---|
 | `io.thedebuggedlife.mcp.proxy-version` | `mcp-auth-proxy` `FROM` tag in the Dockerfile |
 | `io.thedebuggedlife.mcp.node-version` | `node` `FROM` tag in the Dockerfile (`-slim` stripped) |
-| `io.thedebuggedlife.mcp.package` | `mcpPackage` from `mcp.yaml` |
-| `io.thedebuggedlife.mcp.package-version` | the pinned version from `mcps/<name>/package.json` |
+| `io.thedebuggedlife.mcp.dotnet-version` | **`dotnet` images only.** `mcr.microsoft.com/dotnet/aspnet` `FROM` tag in the Dockerfile (the `-noble` suffix stripped) |
+| `io.thedebuggedlife.mcp.package` | `mcpPackage` from `mcp.yaml` — for `dotnet` images, the upstream image name (`mcpImage`) instead |
+| `io.thedebuggedlife.mcp.package-version` | the pinned version from `mcps/<name>/package.json` — for `dotnet` images, the `upstream.Dockerfile` tag with any leading `v` stripped |
 
 ## Versioning
 
@@ -261,7 +324,8 @@ package, or Node base). A digest-only base rebuild maps to a patch bump.
 
 Per-image versions use **scope-based commit routing**: one semantic-release run per image (tag prefix
 `mcp-<name>-v*`) accepts its own commit scope (`hevy`/`todoist`) plus the shared `proxy`/`node`/`image`
-scopes — so a shared change versions every image while an MCP bump versions only its own. Any other commit
+scopes — plus, for `type: dotnet` images (e.g. `mcp-immich`), the shared `dotnet` scope — so a shared change
+versions every image (or every `dotnet` image) while an MCP bump versions only its own. Any other commit
 (unscoped, or `ci:`/`docs:`/`chore:`) releases nothing — see [CLAUDE.md](./CLAUDE.md) for the conventions.
 Tags published: `:<semver>` + `:latest`.
 
@@ -281,6 +345,7 @@ image(s). Using `mcp-hevy` as the example:
 | `hevy-mcp` upstream **major** | `feat(hevy): …` + `BREAKING CHANGE:` footer (Renovate) | major | — |
 | `mcp-auth-proxy` edge bump | `fix(proxy):` / `feat(proxy): …` (Renovate) | per severity | **all bump** |
 | `node` base bump (LTS) | `fix(node):` / `feat(node): …` (Renovate) | per severity | **all bump** |
+| ASP.NET base bump (`type: dotnet` images) | `fix(dotnet):` / `feat(dotnet): …` (Renovate) | — | — (**all `type: dotnet` images bump**) |
 | image runtime change (entrypoint, schema shim, baked script) | `fix(image):` / `feat(image): …` (us) | per severity | **all bump** |
 
 "Per severity" follows the same rule as the MCP rows: `feat` → minor, `fix`/digest → patch,

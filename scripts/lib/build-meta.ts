@@ -5,10 +5,11 @@ import { loadMcpConfig } from './mcp-config.ts'
 
 export interface BuildMeta {
   name: string
-  type: 'node'
+  type: 'node' | 'dotnet'
   target: string
   upstream: string
   upstreamVersion: string
+  mcpImageRef: string
   launch: string
   nodeVersion: string
 }
@@ -32,6 +33,20 @@ export function buildMeta(
   mcpsDir: string = defaultMcpsDir,
 ): BuildMeta {
   const config = loadMcpConfig(name, mcpsDir)
+
+  if (config.type === 'dotnet') {
+    return {
+      name: config.name,
+      type: config.type,
+      target: config.type,
+      upstream: config.mcpImage,
+      upstreamVersion: config.upstreamVersion,
+      mcpImageRef: config.upstreamRef,
+      launch: ['dotnet', `/app/mcp/${config.mcpAssembly}`, ...config.mcpArgs].join(' '),
+      nodeVersion: '',
+    }
+  }
+
   return {
     name: config.name,
     type: config.type,
@@ -41,6 +56,7 @@ export function buildMeta(
       join(mcpsDir, name, 'package.json'),
       config.mcpPackage,
     ),
+    mcpImageRef: '',
     launch: `/app/node_modules/.bin/${config.mcpBin}`,
     nodeVersion: config.nodeVersion ?? '',
   }

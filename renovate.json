@@ -25,6 +25,19 @@
       "semanticCommitScope": "node"
     },
     {
+      "description": "Shared ASP.NET base image — scope 'dotnet' (versions only type: dotnet images).",
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["mcr.microsoft.com/dotnet/aspnet"],
+      "semanticCommitScope": "dotnet"
+    },
+    {
+      "description": "The .NET runtime major must track the upstream MCPs' target framework (a net10.0 app will not start on 11.x), so majors are bumped by hand.",
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["mcr.microsoft.com/dotnet/aspnet"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Discord MCP npm package — scope 'discord' (versions only the discord image).",
       "matchManagers": ["npm"],
       "matchFileNames": ["mcps/discord/package.json"],
@@ -53,6 +66,12 @@
       "matchManagers": ["npm"],
       "matchFileNames": ["mcps/trello/package.json"],
       "semanticCommitScope": "trello"
+    },
+    {
+      "description": "Immich MCP upstream image pin — scope 'immich' (versions only the immich image). Per-MCP rules must stay after the shared-scope rules so their scope wins the merge.",
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": ["mcps/immich/upstream.Dockerfile"],
+      "semanticCommitScope": "immich"
     },
     {
       "description": "minor → feat → composite minor bump (Appendix B.2).",
