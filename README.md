@@ -28,6 +28,7 @@ vulnerability window, since the proxy is the internet-facing gate. This builder 
 | PagerDuty | `ghcr.io/thedebuggedlife/mcp-pagerduty` | [`@vineethnkrishnan/pagerduty-mcp`](https://www.npmjs.com/package/@vineethnkrishnan/pagerduty-mcp) | [vineethkrishnan/mcp-pool](https://github.com/vineethkrishnan/mcp-pool/tree/main/packages/pagerduty) |
 | Todoist | `ghcr.io/thedebuggedlife/mcp-todoist` | [`@doist/todoist-mcp`](https://www.npmjs.com/package/@doist/todoist-mcp) | [Doist/todoist-mcp](https://github.com/Doist/todoist-mcp) |
 | Trello | `ghcr.io/thedebuggedlife/mcp-trello` | [`@delorenj/mcp-server-trello`](https://www.npmjs.com/package/@delorenj/mcp-server-trello) | [delorenj/mcp-server-trello](https://github.com/delorenj/mcp-server-trello) |
+| Wanderlog | `ghcr.io/thedebuggedlife/mcp-wanderlog` | [`@thedebuggedlife/wanderlog-mcp`](https://www.npmjs.com/package/@thedebuggedlife/wanderlog-mcp) | [thedebuggedlife/wanderlog-mcp](https://github.com/thedebuggedlife/wanderlog-mcp) — reviewed fork of [shaikhspeare/wanderlog-mcp](https://github.com/shaikhspeare/wanderlog-mcp) |
 
 **Want another MCP?** [Open a new-MCP request](https://github.com/thedebuggedlife/mcp-proxy-bundler/issues/new?template=new-mcp.yml)
 with the npm package and, if you know them, its stdio bin and API-key env var. Most stdio MCPs onboard as a
@@ -237,6 +238,10 @@ not re-authenticate across an update.
 explicitly to pin the host your API token is sent to. Of its two `apiKeyEnvs`, only
 `PAGERDUTY_API_KEY` is required; `PAGERDUTY_USER_EMAIL` is just the author of the incident write
 tools (acknowledge/resolve/reassign/note), so a read-only deployment can leave it a placeholder.
+`mcp-wanderlog` authenticates with `WANDERLOG_COOKIE`, the `connect.sid` session cookie from a logged-in
+wanderlog.com browser session (Wanderlog has no public API). It is valid for about a year and grants full
+access to the account — treat it as a password. It optionally reads `WANDERLOG_USER_AGENT` and
+`WANDERLOG_DEFAULT_CURRENCY`.
 
 The proxy is the **sole gate**: `GET /mcp` unauthenticated returns `401` (not a portal redirect). It speaks
 OAuth 2.1 authorization-code + PKCE (S256) with Dynamic Client Registration toward downstream MCP clients.

@@ -55,6 +55,12 @@
       "semanticCommitScope": "trello"
     },
     {
+      "description": "Wanderlog MCP npm package (our reviewed fork) — scope 'wanderlog' (versions only the wanderlog image).",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["mcps/wanderlog/package.json"],
+      "semanticCommitScope": "wanderlog"
+    },
+    {
       "description": "minor → feat → composite minor bump (Appendix B.2).",
       "matchUpdateTypes": ["minor"],
       "semanticCommitType": "feat"

@@ -59,6 +59,22 @@ const MCPS: Record<string, Omit<McpUnderTest, 'image'>> = {
     apiKeyEnvs: ['TRELLO_API_KEY', 'TRELLO_TOKEN'],
     expectedTools: ['get_lists', 'get_cards_by_list_id', 'add_card_to_list'],
   },
+  wanderlog: {
+    name: 'wanderlog',
+    apiKeyEnvs: ['WANDERLOG_COOKIE'],
+    // The MCP refuses to start unless the cookie looks like connect.sid.
+    apiKeyValue: 's%3Aplaceholder',
+    extraEnv: {
+      WANDERLOG_BASE_URL: 'http://127.0.0.1:9',
+      WANDERLOG_WS_BASE_URL: 'ws://127.0.0.1:9',
+    },
+    expectedTools: [
+      'wanderlog_list_trips',
+      'wanderlog_get_trip',
+      'wanderlog_create_trip',
+      'wanderlog_add_place',
+    ],
+  },
 }
 
 export function mcpTestSpec(name: string): Omit<McpUnderTest, 'image'> | undefined {

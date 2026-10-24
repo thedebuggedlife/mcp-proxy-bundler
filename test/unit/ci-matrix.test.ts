@@ -12,6 +12,7 @@ describe('ci matrix discovery', () => {
       'pagerduty',
       'todoist',
       'trello',
+      'wanderlog',
     ])
   })
 
