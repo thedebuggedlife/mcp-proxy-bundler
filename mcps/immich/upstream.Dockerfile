@@ -1,1 +1,1 @@
-FROM ghcr.io/barryw/immichmcp:v3.3.3@sha256:3f3148232c43567df42501957778dde421abeb59cfa9f622ee58af5d39da8577
+FROM ghcr.io/barryw/immichmcp:v3.3.5@sha256:45acbcd7fb7ab766e1edad00cb5d3a2b849f1f6ecbadeb14771d1413bb241187
