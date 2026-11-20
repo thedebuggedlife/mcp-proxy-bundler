@@ -16,7 +16,7 @@
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/github": "^12.0.0",
     "@semantic-release/release-notes-generator": "^14.1.1",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "semantic-release": "^25.0.0",
     "tough-cookie": "^6.0.0",
     "typescript": "^6.0.0",
