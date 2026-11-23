@@ -3,7 +3,7 @@ ARG MCP_IMAGE=scratch
 # Literal, digest-pinned upstreams: single-sourced for Renovate and the build scripts' version parse.
 FROM ghcr.io/sigbit/mcp-auth-proxy:v2.11.0@sha256:23a2feee0322dda0f81c83b746666f7271c44626f0176ae7abb362ac217d4d73 AS proxy
 FROM node:26.12.1-slim@sha256:94816674c62774da0d099a947bf4613b9e1972a2733abd0d0cd80e795f8411d0 AS node-upstream
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-noble@sha256:12b1135f5f8b3c0a214f2a680ff2033dff4f684f445d6c697d9524ceeb303586 AS dotnet-upstream
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-noble@sha256:aac50ceef10391e78a899e3d2ccd00bbafa2dcb56ccf4586cbccf00edb84fc21 AS dotnet-upstream
 # Artifact carrier for image-distributed MCPs; the real pin lives in mcps/<name>/upstream.Dockerfile.
 FROM ${MCP_IMAGE} AS mcp-image
 
